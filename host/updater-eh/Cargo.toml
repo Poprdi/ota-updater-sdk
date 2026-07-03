@@ -1,0 +1,12 @@
+[package]
+name = "updater-eh"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.81"
+description = "embedded-hal 1.x I2C Transport adapter for the updater SDK: the Pico 2 W / ESP32 platform glue"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+# Exactly these two: the crate is no_std platform glue and nothing else.
+embedded-hal = "1"
+updater-core = { path = "../updater-core" }

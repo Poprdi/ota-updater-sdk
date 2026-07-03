@@ -1,0 +1,3 @@
+[workspace]
+resolver = "2"
+members = ["updater-core", "updater-eh", "updater-cli"]

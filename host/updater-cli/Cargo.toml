@@ -1,0 +1,13 @@
+[package]
+name = "updater-cli"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.81"
+description = "Linux command-line front end for the updater SDK: info/echo/flash/boot over /dev/i2c-*"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+i2cdev = "0.6"
+updater-core = { path = "../updater-core" }

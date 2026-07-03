@@ -1,0 +1,22 @@
+[package]
+name = "updater-core"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.81"
+description = "no_std, zero-alloc, zero-dependency host core for the updater SDK: frame codec + image handling"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+# Intentionally empty: updater-core is #![no_std] with zero dependencies so the
+# identical crate runs on RPi Linux, RPi Pico 2 W and ESP32.
+
+[dev-dependencies]
+# Spec-mandated property testing (tests/prop.rs). The hermetic hand-rolled
+# property tests in tests/golden.rs remain alongside so a plain `cargo test`
+# still exercises the codec even where crates.io is unreachable.
+proptest = "1.8.0"
+
+[lints.rust]
+# `cfg(kani)` gates the model-checking proof modules in src/; declare it so
+# normal builds (which never set it) stay warning-free under -D warnings.
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(kani)"] }
