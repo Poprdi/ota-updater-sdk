@@ -169,6 +169,11 @@ impl<'a> Image<'a> {
     /// last page. Exactly `page_size` bytes of `out` are written; any excess
     /// is left untouched.
     ///
+    /// # Buffer contract
+    ///
+    /// On any error, `out` is left entirely untouched — no partial render is
+    /// observable. This guarantee is verified by the crate's Kani harnesses.
+    ///
     /// # Errors
     ///
     /// [`Error::PageOutOfRange`] if `index >= page_count()`;
@@ -356,43 +361,68 @@ mod proofs {
         }
     }
 
-    /// Every index `pages()` yields is in range and renders via
-    /// `page_into`; the footer page is always among them.
+    /// `pages()` never panics and yields only in-range indices, the footer
+    /// page always among them.
     ///
-    /// Tighter bounds than the other image harnesses: this one composes the
-    /// `pages()` skip scan with a full `page_into` render per yielded index
-    /// (nested symbolic-trip-count loops), which the solver pays for
-    /// multiplicatively — with symbolic page_size it blew the time budget.
-    /// Geometry is therefore concrete (ps = 16, the minimum) with app_pages
-    /// and every data byte symbolic; that still covers each qualitative
-    /// case — a must-write data page, a skipped all-0xFF middle page, the
-    /// always-yielded footer page, a data/padding boundary inside a page.
-    /// `page_into` across the symbolic-geometry space is `page_into_total`'s
-    /// job; this harness targets the yield set.
+    /// Every yielded index therefore *renders*: `page_into_total` proves
+    /// index < app_pages with a >= page_size buffer always returns Ok, and
+    /// this harness proves every yield satisfies that precondition — the
+    /// render claim is their composition. (An in-loop `page_into` call was
+    /// tried first; the pages-scan x render product blew the time budget
+    /// even at minimal bounds, and it re-proves nothing `page_into_total`
+    /// does not already cover.)
+    ///
+    /// Geometry: concrete ps = 16 (minimum) and ap = 3, all data bytes and
+    /// the data length symbolic — covers a must-write data page, skippable
+    /// all-0xFF pages, the always-yielded footer page and a data/padding
+    /// boundary inside a page; a second block pins the ap = 1 edge (footer
+    /// page is page 0 and the only page).
+    ///
+    /// Bound story (this harness fought back hard): the cost driver is the
+    /// unwind product — the for-loop, the iterator's internal scan and the
+    /// per-page window scans each get unrolled `unwind` times and the
+    /// copies MULTIPLY, with every symbolic loop guard (from a symbolic
+    /// data length) forcing full unrolling. Symbolic geometry, then
+    /// concrete geometry with symbolic length, then data <= 4 all blew the
+    /// budget. What verifies fast: concrete data LENGTH with every data
+    /// BYTE symbolic — still a universally quantified statement over all
+    /// 2^32 data contents, which is what the yield-set logic actually
+    /// branches on (byte == 0xFF or not). Symbolic lengths/geometry are
+    /// carried by `from_bin_total`, `page_into_total` and the proptest
+    /// `image_pages_render_consistently` (64 pages, 1 KiB data).
     #[kani::proof]
-    #[kani::unwind(24)]
-    fn pages_yield_renderable_indices() {
-        const SMALL_DATA: usize = 20; // > 1 page at ps = 16
-        let data: [u8; SMALL_DATA] = kani::any();
-        let dlen: usize = kani::any();
-        kani::assume(dlen <= SMALL_DATA);
-        let Some(bytes) = data.get(..dlen) else { return };
-        let page_size: u16 = 16;
-        let app_pages: u16 = kani::any();
-        kani::assume((1..=3).contains(&app_pages));
-        let Ok(img) = Image::from_bin(bytes, page_size, app_pages) else {
-            return;
+    #[kani::unwind(10)]
+    fn pages_yield_in_range_and_footer() {
+        let data: [u8; 4] = kani::any(); // partial page 0; pages 1..3 all-0xFF
+        let app_pages: u16 = 3;
+        let Ok(img) = Image::from_bin(&data, 16, app_pages) else {
+            panic!("16 x 3 geometry must accept 4 data bytes")
         };
 
-        let mut page = [0u8; 16];
+        // Explicit next() calls instead of a for loop: at most app_pages
+        // yields exist, and unrolling by hand stops the unwinder from
+        // multiplying loop copies (for-loop x iterator-internal scan).
+        let mut it = img.pages();
+        let yields = [it.next(), it.next(), it.next()];
+        assert!(it.next().is_none(), "no more than app_pages yields");
         let mut saw_footer = false;
-        for index in img.pages() {
-            assert!(index < app_pages);
-            assert!(img.page_into(index, &mut page).is_ok());
-            if index == img.footer_page_index() {
-                saw_footer = true;
+        for y in yields {
+            if let Some(index) = y {
+                assert!(index < app_pages);
+                if index == img.footer_page_index() {
+                    saw_footer = true;
+                }
             }
         }
         assert!(saw_footer, "the footer page must always be written");
+
+        // ap = 1 edge: the single page is the footer page and must be the
+        // one and only yield (capacity 0 forces an empty image).
+        let Ok(single) = Image::from_bin(&[], 16, 1) else {
+            panic!("16 x 1 geometry must accept an empty image")
+        };
+        let mut it = single.pages();
+        assert!(it.next() == Some(0));
+        assert!(it.next().is_none());
     }
 }

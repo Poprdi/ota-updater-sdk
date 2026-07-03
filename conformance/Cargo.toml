@@ -1,0 +1,19 @@
+# Conformance harness: the shipped Rust client (updater-core) driving the
+# real C device core through simulated flash. Dev-only; deliberately its own
+# workspace so the shipped host/ workspace stays free of build-deps and FFI.
+[package]
+name = "conformance"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.81"
+publish = false
+description = "Contract enforcer: updater-core (Rust) vs device/core (C) over a simulated device"
+
+[dependencies]
+updater-core = { path = "../host/updater-core" }
+
+[build-dependencies]
+cc = "1"
+
+[workspace]
+# Standalone on purpose — not a member of host/Cargo.toml.

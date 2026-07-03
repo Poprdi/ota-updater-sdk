@@ -93,6 +93,15 @@ pub fn crc8(data: &[u8]) -> u8 {
 
 /// Encode a frame into `out`, returning the number of bytes written.
 ///
+/// # Buffer contract
+///
+/// On `Ok(n)`, exactly the first `n` bytes of `out` are written
+/// (`n == payload.len() + FRAME_OVERHEAD`); the bytes `out[n..]` are left
+/// untouched. On `Err(BufferTooSmall)`, the **entire** buffer is left
+/// untouched — there is no observable partial write — and `needed` is
+/// exactly `payload.len() + FRAME_OVERHEAD`. This contract is verified by
+/// the crate's Kani harnesses.
+///
 /// # Errors
 ///
 /// [`Error::PayloadTooLarge`] if `payload.len() > PAYLOAD_MAX`;

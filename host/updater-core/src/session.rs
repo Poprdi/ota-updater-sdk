@@ -114,6 +114,11 @@ impl<'b, T: Transport> Session<'b, T> {
 
     /// Ask the device to boot the application.
     ///
+    /// Note: the final ACK is inherently ambiguous — the device may boot
+    /// successfully while its OK reply is lost on the wire, so treat
+    /// post-boot silence or a transport error here as expected rather than
+    /// as proof the boot failed.
+    ///
     /// # Errors
     ///
     /// [`Error::Device`]`(ST_NO_APP)` if the boot gate rejects the flashed
@@ -369,7 +374,9 @@ mod proofs {
     }
 
     /// `parse_info` never panics for arbitrary bytes; it accepts exactly
-    /// the 11-byte post-status INFO payload.
+    /// the 11-byte post-status INFO payload, and every field decodes as
+    /// documented: byte-for-byte proto / bl_version / device_id, LE u16
+    /// page_size and app_pages, app_valid == (byte != 0).
     #[kani::proof]
     #[kani::unwind(20)]
     fn parse_info_total() {
@@ -381,7 +388,16 @@ mod proofs {
         match parse_info::<core::convert::Infallible>(view) {
             Ok(info) => {
                 assert!(len == INFO_RSP_PAYLOAD - 1);
-                assert!(view.first() == Some(&info.proto));
+                let [proto, bl, d0, d1, d2, d3, ps_lo, ps_hi, ap_lo, ap_hi, valid] = *view
+                else {
+                    panic!("Ok implies an 11-byte payload")
+                };
+                assert!(info.proto == proto);
+                assert!(info.bl_version == bl);
+                assert!(info.device_id == [d0, d1, d2, d3]);
+                assert!(info.page_size == u16::from_le_bytes([ps_lo, ps_hi]));
+                assert!(info.app_pages == u16::from_le_bytes([ap_lo, ap_hi]));
+                assert!(info.app_valid == (valid != 0));
             }
             Err(Error::BadFrame) => assert!(len != INFO_RSP_PAYLOAD - 1),
             Err(_) => panic!("parse_info yields only BadFrame"),
