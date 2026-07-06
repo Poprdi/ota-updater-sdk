@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2026 Adrian Erlacher
+
 //! Hand-rolled error type: no dependencies, no allocation, no strings built
 //! at runtime — every variant carries the precise facts a caller can act on.
 

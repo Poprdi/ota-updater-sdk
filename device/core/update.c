@@ -1,4 +1,7 @@
-/* Update session FSM — the proof-bearing core.
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher
+ *
+ * Update session FSM — the proof-bearing core.
  *
  * Invariant 1 (confinement): every port_flash_* call in this file passes a
  * page argument p with p < s->info.app_pages. ACSL asserts at each call

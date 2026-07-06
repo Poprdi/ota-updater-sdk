@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher */
+
 #include "softuart_pump.h"
 
 /* Bit-banged 8N1 at SOFTUART_BIT_US per bit. All timing rationale — the

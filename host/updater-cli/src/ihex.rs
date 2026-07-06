@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2026 Adrian Erlacher
+
 //! Minimal Intel-HEX parser: `:llaaaatt[dd..]cc`, record types 00 (data)
 //! and 01 (EOF) honored, start-address records 03/05 ignored with a note
 //! on stderr (the updater has no entry-point concept — the device boots

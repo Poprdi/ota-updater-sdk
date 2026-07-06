@@ -1,7 +1,16 @@
-# Device proof lane — bounded model checking of the C core with CBMC.
-# Prover probe order (TOOLING.md ladder): Kani-bundled CBMC -> system CBMC;
-# when Frama-C lands it slots in as the full deductive leg (ACSL/WP) without
-# restructuring — see README.md.
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2026 Adrian Erlacher
+#
+# Device proof lane — two legs (TOOLING.md ladder):
+#   cbmc: bounded model checking of the C core (Kani-bundled CBMC -> system
+#         CBMC probe order).
+#   wp:   Frama-C/WP + Alt-Ergo deductive proofs (unbounded), via the pinned
+#         framac/frama-c container — single driver device/proofs/run-wp.sh,
+#         the same file CI executes. Skips with a notice when docker or the
+#         image is absent: `make prove` runs every prover available on THIS
+#         machine (root Makefile contract), and the CI frama-c-proofs job
+#         runs the leg unconditionally, so a local skip never silently
+#         drops the property.
 CBMC := $(shell ls $$HOME/.kani/kani-*/bin/cbmc 2>/dev/null | head -1)
 ifeq ($(CBMC),)
 CBMC := $(shell command -v cbmc)
@@ -34,8 +43,13 @@ SRC := ../core/crc8.c ../core/crc32.c ../core/proto.c ../core/update.c
 # contract in for code the harness never reaches
 LINK_SRC := ../core/crc8.c ../core/proto.c ../core/link_stream.c
 
-.PHONY: all clean
-all:
+# Pinned proof container (see run-wp.sh header for the version rationale).
+FRAMAC_IMAGE := framac/frama-c:32.1
+
+.PHONY: all cbmc wp clean
+all: cbmc wp
+
+cbmc:
 ifeq ($(CBMC),)
 	@echo "no prover available: install kani (bundles cbmc) or frama-c — see TOOLING.md"; exit 1
 else
@@ -44,5 +58,17 @@ else
 	$(CBMC) $(CHECKS) $(UNWIND) $(SOLVER) -I../include -DPROOF_SMALL_MODEL harness_boot_gate.c $(SRC)
 	$(CBMC) $(CHECKS) $(UNWIND_LINK) $(SOLVER) -I../include -DPROOF_SMALL_MODEL harness_link.c $(LINK_SRC)
 endif
+
+wp:
+	@if command -v docker >/dev/null 2>&1 \
+	    && docker image inspect $(FRAMAC_IMAGE) >/dev/null 2>&1; then \
+		echo "== Frama-C/WP leg ($(FRAMAC_IMAGE)) =="; \
+		docker run --rm -v "$$(cd ../.. && pwd):/work" -w /work \
+		    $(FRAMAC_IMAGE) device/proofs/run-wp.sh; \
+	else \
+		echo "notice: Frama-C/WP leg SKIPPED — docker or the $(FRAMAC_IMAGE) image is absent."; \
+		echo "        docker pull $(FRAMAC_IMAGE)   # ~1 GB, once; CI always runs this leg"; \
+	fi
+
 clean:
-	@true
+	rm -f wp.log

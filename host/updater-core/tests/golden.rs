@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2026 Adrian Erlacher
+
 //! Golden vectors fixed by the spec (docs/superpowers/specs/2026-07-03) plus
 //! behavioral tests for the no_std frame codec and image handling.
 //!

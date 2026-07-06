@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher */
+
 #ifndef UPDATER_LINK_H
 #define UPDATER_LINK_H
 #include <stdbool.h>
@@ -59,7 +62,11 @@ void link_init(link_t *l, const link_io_t *io, uint8_t *buf, uint8_t buf_len);
  * loop on link_poll to drain batched input. Returns false once the port
  * runs dry with no complete frame. *out then aliases l->buf and stays
  * valid until the next link_poll on the same link. Invalid frames are
- * dropped silently. */
+ * dropped silently.  *
+ * link_t carries a load-bearing internal invariant (machine-checked in
+ * link_stream.c): only ever obtain one from link_init and mutate it through
+ * link_poll — a hand-constructed or field-poked link_t is out of contract.
+ */
 bool link_poll(link_t *l, upd_frame_t *out);
 
 /* Emits 0x7E, then the n frame bytes verbatim (frame as produced by

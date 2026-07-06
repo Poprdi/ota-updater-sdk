@@ -1,4 +1,7 @@
-/* CBMC harness — Invariant 1: flash confinement.
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher
+ *
+ * CBMC harness — Invariant 1: flash confinement.
  *
  * Model: a nondet port (page_size/app_pages bounded by PROOF_SMALL_MODEL),
  * a session in a nondet state (both values of `erased`), and one fully

@@ -1,4 +1,7 @@
-/* Minimal validation app for the rp2350_uart port — the image the first
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher
+ *
+ * Minimal validation app for the rp2350_uart port — the image the first
  * hardware cycle flashes through the bootloader. Linked at the app region
  * (memmap_app.ld, XIP base + 64 KiB); the bootloader enters it via
  * VTOR/MSP/reset-handler, so this is an ordinary pico-sdk binary.

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2026 Adrian Erlacher
+
 //! Host-side stream framing: the byte-exact mirror of the device's
 //! `link_stream.c` receive machine, shared by every byte-stream transport
 //! (UART, SPI, bit-banged GPIO). I2C is transactional and does not use it.

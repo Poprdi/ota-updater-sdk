@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2026 Adrian Erlacher
+
 //! [`Transport`] over an `embedded-hal` [`SpiDevice`].
 //!
 //! Wire binding (see `device/ports/skeletons/spi_pump.h` for the slave

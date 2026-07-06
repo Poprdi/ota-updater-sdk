@@ -1,4 +1,4 @@
-# Updater SDK — integration datasheet
+# OTA Updater SDK — integration datasheet
 
 How to put the updater into a product: what it does, exact limits,
 copy-paste recipes per target, and every sharp edge we hit building it.

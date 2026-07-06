@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2026 Adrian Erlacher
+
 //! [`Transport`] over `embedded-hal` 1.x blocking I2C.
 //!
 //! The exchange is write-then-poll-read: the request frame goes out in one

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2026 Adrian Erlacher
+
 //! [`Transport`] over an `embedded-io` byte stream (hardware UART,
 //! USB-CDC, RS-485 — anything stream-shaped).
 //!

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2026 Adrian Erlacher
+
 //! Golden byte exchanges: literal wire bytes through the C side, validated
 //! by the Rust codec in both directions. If either codec drifts from the
 //! spec's §Wire protocol v1, these literals catch it.

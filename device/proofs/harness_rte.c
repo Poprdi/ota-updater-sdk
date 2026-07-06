@@ -1,4 +1,7 @@
-/* CBMC harness — RTE freedom across the whole device core.
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher
+ *
+ * CBMC harness — RTE freedom across the whole device core.
  *
  * No property asserts of substance: CBMC's automatic checks (--bounds-check
  * --pointer-check --conversion-check --div-by-zero-check

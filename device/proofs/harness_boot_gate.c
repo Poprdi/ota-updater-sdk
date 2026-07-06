@@ -1,4 +1,7 @@
-/* CBMC harness — Invariant 2: jump gating.
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher
+ *
+ * CBMC harness — Invariant 2: jump gating.
  *
  * Model: flash is a concrete array of fully nondet bytes (footer included),
  * STABLE across reads — so upd_app_valid is a deterministic predicate of

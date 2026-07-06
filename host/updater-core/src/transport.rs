@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2026 Adrian Erlacher
+
 //! The [`Transport`] trait: the single seam between the portable session
 //! engine and a platform.
 //!

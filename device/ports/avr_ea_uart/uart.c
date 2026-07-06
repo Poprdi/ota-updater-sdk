@@ -1,4 +1,7 @@
-/* Polled USART0 — DS40002443A section 25. Zero protocol knowledge: this
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher
+ *
+ * Polled USART0 — DS40002443A section 25. Zero protocol knowledge: this
  * file is only the four uart_pump register ops plus init/drain; framing
  * lives in link_stream, commands in the core.
  *

@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher */
+
 #include <string.h>
 #include "check.h"
 #include "updater/link.h"

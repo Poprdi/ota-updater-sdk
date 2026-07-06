@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher */
+
 #ifndef SIM_PORT_H
 #define SIM_PORT_H
 /* Simulated device for the conformance harness: the real device core

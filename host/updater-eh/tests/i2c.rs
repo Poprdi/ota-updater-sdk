@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2026 Adrian Erlacher
+
 //! Tests for the embedded-hal I2C transport against a scripted fake bus.
 //!
 //! The fake implements `embedded_hal::i2c::I2c` the way the device behaves

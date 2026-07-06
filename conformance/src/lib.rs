@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2026 Adrian Erlacher
+
 //! FFI to the simulated device (`sim/sim_port.c` + the real `device/core`)
 //! and the safe wrappers the conformance tests use.
 //!

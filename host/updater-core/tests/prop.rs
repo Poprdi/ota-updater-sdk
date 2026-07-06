@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2026 Adrian Erlacher
+
 //! Proptest property tests for the frame codec and image handling.
 //!
 //! These complement (not replace) the hermetic hand-rolled property tests

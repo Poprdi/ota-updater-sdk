@@ -2,3 +2,4 @@ build/
 target/
 *.o
 *.a
+device/proofs/wp.log

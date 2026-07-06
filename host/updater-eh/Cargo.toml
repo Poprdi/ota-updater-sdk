@@ -1,10 +1,17 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2026 Adrian Erlacher
+
 [package]
 name = "updater-eh"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.81"
-description = "embedded-hal 1.x Transport adapters (I2C, UART, SPI, softuart GPIO) for the updater SDK: the Pico 2 W / ESP32 platform glue"
+authors = ["Adrian Erlacher"]
+description = "embedded-hal 1.x Transport adapters (I2C, UART, SPI, softuart GPIO) for the OTA Updater SDK: the Pico 2 W / ESP32 platform glue"
+repository = "https://github.com/Poprdi/ota-updater-sdk"
 license = "MIT OR Apache-2.0"
+keywords = ["ota", "firmware", "embedded-hal", "no-std", "embedded"]
+categories = ["embedded", "no-std"]
 
 [dependencies]
 # Exactly these three: the crate is no_std platform glue and nothing else.

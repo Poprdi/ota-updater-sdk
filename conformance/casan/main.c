@@ -1,4 +1,7 @@
-/* Sanitizer campaign: the same conformance scenarios re-run in plain C
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher
+ *
+ * Sanitizer campaign: the same conformance scenarios re-run in plain C
  * under ASan + UBSan (-fno-sanitize-recover=all). The Rust tests prove the
  * contract; this run proves the C side reaches those states with zero
  * undefined behaviour and zero memory errors. Exit 0 = clean.

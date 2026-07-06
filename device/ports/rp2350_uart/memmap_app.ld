@@ -1,4 +1,7 @@
-/* updater-sdk rp2350_uart APP memory map — the one-line contract for
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher
+ *
+ * updater-sdk rp2350_uart APP memory map — the one-line contract for
    applications flashed through this bootloader.
    Derived from pico-sdk 2.1.1 src/rp2_common/pico_crt0/rp2350/
    memmap_default.ld with ONE change: FLASH starts at the app region

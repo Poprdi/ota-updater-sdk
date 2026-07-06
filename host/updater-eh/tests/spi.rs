@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2026 Adrian Erlacher
+
 //! Tests for the SpiDevice transport against a scripted fake bus.
 //!
 //! The fake models the device-side `spi_pump` contract: the slave shifts

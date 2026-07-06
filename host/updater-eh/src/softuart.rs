@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2026 Adrian Erlacher
+
 //! [`Transport`] over two GPIOs: bit-banged 9600-baud 8N1 — the "two
 //! spare random pins" escape hatch, mirroring the device-side
 //! `softuart_pump` timing discipline byte for byte.

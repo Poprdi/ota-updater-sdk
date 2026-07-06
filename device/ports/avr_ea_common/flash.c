@@ -1,4 +1,7 @@
-/* NVMCTRL boundary — DS40002443A section 11. Bounds are the core's proven
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher
+ *
+ * NVMCTRL boundary — DS40002443A section 11. Bounds are the core's proven
  * obligation (page < app_pages, offset < region); this file does plain
  * address math and the datasheet command sequences, nothing else.
  *

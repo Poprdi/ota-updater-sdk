@@ -1,0 +1,98 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2026 Adrian Erlacher
+#
+# updater-sdk CI — two jobs:
+#
+#   frama-c-proofs  The deductive proof gate. Runs device/proofs/run-wp.sh —
+#                   the SAME script `make -C device prove-wp` wraps locally —
+#                   inside the pinned framac/frama-c:32.1 container
+#                   (Frama-C 32.1 "Germanium" + Alt-Ergo 2.5.4, Debian 12
+#                   base; pinned so a silent toolchain drift can never
+#                   change what "proven" means). The script exits non-zero
+#                   on ANY unproven goal; the full WP log is uploaded as an
+#                   artifact either way.
+#
+#   fast-gates      Everything cheap enough for every push: device unit
+#                   tests, both AVR bootloader builds (each enforces its
+#                   4 KiB size gate and the .init3 push/call/ret-free
+#                   disassembly gate), the host Rust workspace (tests,
+#                   clippy -D warnings, no_std thumbv8m builds) and the
+#                   conformance suite (real Rust host driving the real C
+#                   core).
+#
+# Deliberately NOT in CI day one (extension paths, all run locally via
+# `make prove` / the port lanes):
+#   - CBMC lane: needs the Kani-bundled cbmc + kissat (~1 GB toolchain
+#     download per run; no maintained setup action). Extension: cache
+#     ~/.kani keyed on the kani-verifier version and run
+#     `make -C device prove` here.
+#   - cargo kani (host proofs): same bundle, same path.
+#   - rp2350 port build: needs pico-sdk 2.1.1 + arm-none-eabi-gcc (multi-GB
+#     checkout + toolchain). Extension: cache the SDK checkout and add a
+#     third job.
+#   - conformance/casan sanitizer runner: clang + ASan/UBSan work on the
+#     runner, but it re-runs the whole conformance matrix; add once runtime
+#     is measured. The plain conformance suite below already exercises the
+#     identical FSM/power-cut/golden tables.
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  frama-c-proofs:
+    runs-on: ubuntu-latest
+    container: framac/frama-c:32.1
+    steps:
+      - uses: actions/checkout@v4
+
+      # GitHub runs container jobs as root with HOME=/github/home, not as
+      # the image's `opam` user — run-wp.sh handles the missing Why3
+      # prover config by running `why3 config detect` itself.
+      - name: WP + Alt-Ergo, device core (zero unproven goals required)
+        run: bash device/proofs/run-wp.sh
+
+      - name: Upload WP report
+        if: always()   # the log is most valuable when the run FAILED
+        uses: actions/upload-artifact@v4
+        with:
+          name: wp-report
+          path: device/proofs/wp.log
+
+  fast-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install AVR toolchain
+        run: sudo apt-get update && sudo apt-get install -y gcc-avr avr-libc binutils-avr
+
+      - name: Device unit tests (host cc, -Werror -Wconversion)
+        run: make -C device test
+
+      - name: AVR TWI bootloader (4 KiB size gate + .init3 gate)
+        run: make -C device/ports/avr_ea_twi
+
+      - name: AVR UART bootloader (4 KiB size gate + .init3 gate)
+        run: make -C device/ports/avr_ea_uart
+
+      - name: Host workspace tests
+        run: cargo test --workspace --all-features
+        working-directory: host
+
+      - name: Host clippy (deny warnings)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+        working-directory: host
+
+      - name: no_std thumbv8m build (structural no_std proof)
+        run: |
+          rustup target add thumbv8m.main-none-eabihf
+          cargo build -p updater-core -p updater-eh --target thumbv8m.main-none-eabihf
+        working-directory: host
+
+      - name: Conformance suite (Rust host drives the C core)
+        run: cargo test
+        working-directory: conformance

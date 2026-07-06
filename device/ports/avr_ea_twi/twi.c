@@ -1,4 +1,7 @@
-/* Polled TWI0 client — DS40002443A section 27 (client operation 27.3.2.3).
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher
+ *
+ * Polled TWI0 client — DS40002443A section 27 (client operation 27.3.2.3).
  * Zero protocol knowledge: this file moves bytes between the bus and two
  * buffers; framing/CRC/commands live entirely in the core.
  *

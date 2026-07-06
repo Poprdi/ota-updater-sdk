@@ -1,11 +1,20 @@
 # Device proof lane — `make -C device prove`
 
-Bounded model checking of the device core with CBMC (6.8.0, from the Kani
-bundle: probe `~/.kani/kani-*/bin/cbmc`, fall back to system `cbmc`; if
-neither exists the target fails pointing at the install ladder in
-TOOLING.md). kissat (bundled next to cbmc) is used as the SAT back-end when
-present — the boot-gate harness's CRC-determinism equivalence does not
-finish on CBMC's built-in solver but solves in seconds on kissat.
+Two legs, run by the same target:
+
+1. **CBMC** (bounded model checking, this directory's harnesses): CBMC
+   6.8.0, from the Kani bundle: probe `~/.kani/kani-*/bin/cbmc`, fall back
+   to system `cbmc`; if neither exists the target fails pointing at the
+   install ladder in TOOLING.md. kissat (bundled next to cbmc) is used as
+   the SAT back-end when present — the boot-gate harness's
+   CRC-determinism equivalence does not finish on CBMC's built-in solver
+   but solves in seconds on kissat.
+2. **Frama-C/WP** (deductive, unbounded — see "Frama-C/WP leg" below):
+   `run-wp.sh` in the pinned `framac/frama-c:32.1` container. Skipped with
+   a notice if docker or the image is absent (`docker pull
+   framac/frama-c:32.1` to enable); CI runs it unconditionally on every
+   push/PR, so a local skip never hides a regression. `make -C device
+   prove-wp` runs just this leg.
 
 ## What is proven (zero failed checks, all harnesses)
 
@@ -58,9 +67,12 @@ operation is ever executed, so the checks pass as genuine proofs.
   return value reports the jump exactly, and that the boot path never
   erases/writes flash and never reads outside the app region.
 
-Latest run: `0 of 654 failed` (rte), `0 of 646 failed` (confinement),
-`0 of 636 failed` (boot gate), `0 of 335 failed` (link). Whole
-`make -C device prove`: ~106 s (~70 s of it the link harness).
+Latest run: `0 of 627 failed` (rte), `0 of 619 failed` (confinement),
+`0 of 609 failed` (boot gate), `0 of 311 failed` (link) — counts dropped
+slightly when the WP round replaced a few narrowing ops with wide-unsigned
+forms (see "Core changes forced by WP"). CBMC leg of
+`make -C device prove`: ~100 s (most of it the link harness); the WP leg
+adds ~75 s.
 
 ## Model bounds (`PROOF_SMALL_MODEL`) and why they are sound to use
 
@@ -82,21 +94,95 @@ bounds comparisons are identical at page_size 16 and 512. What the small
 model does NOT cover is arithmetic that only misbehaves at large operand
 values; those sites are guarded structurally (`region_bytes` casts to
 `uint32_t` before multiplying, all length math is done in `unsigned`) and
-carry ACSL contracts so the full-range claim is discharged deductively by
-the Frama-C leg when it lands.
+carry ACSL contracts whose full-range claim is discharged deductively by
+the Frama-C/WP leg (below).
 
-## What Frama-C/WP adds later
+## Frama-C/WP leg — deductive, unbounded (`run-wp.sh`)
 
-CBMC here is *bounded* model checking: exhaustive over the small model.
-Frama-C/WP discharges the ACSL function contracts and loop invariants
-already annotated in `core/` for **unbounded** inputs and the full
-`uint16_t` geometry range — quantified, not enumerated. The Makefile's
-prover probe means no restructuring is needed: install Frama-C (opam, no
-sudo) and add its WP invocation as a second leg. Known ACSL gap carried
-forward deliberately: `upd_crc8` has no ACSL logic-function model of the
-CRC (the `behavior ok` completeness of callers is stated over lengths and
-bytes, not CRC values); it was assessed as high-effort/low-yield for this
-task and is deferred to the Frama-C leg.
+CBMC above is *bounded* model checking: exhaustive over the small model.
+The WP leg discharges the ACSL contracts and loop annotations in `core/`
+and `include/updater/port.h` for **unbounded** inputs and the full
+`uint16_t` geometry range — quantified, not enumerated. Environment is
+pinned: Frama-C 32.1 (Germanium) + Alt-Ergo 2.5.4, i.e. the
+`framac/frama-c:32.1` image (32.1 was the current stable release at
+adoption, June 2026; the `dev` tags float and would let "proven" drift).
+Latest run: **534 goals, 534 proven, 0 unproven** (Qed 314, Alt-Ergo 206,
+plus terminating/unreachable bookkeeping goals), ~75 s wall on 20 threads.
+
+What the proven goal set contains:
+
+- **UB freedom** (`-wp-rte`): memory access validity, signed overflow,
+  division, shift-width guards, for every function in the five core units.
+- **The port contract** (`port.h`): all 9 `port_*` functions now carry
+  ACSL. Device state (flash, wire, ticks, the entry pair) is reachable
+  only through these functions, so `assigns \nothing` on the readers is
+  the exact frame the core is proven in; results stay unconstrained (no
+  false determinism is smuggled in).
+- **Invariant 1 (confinement)**: the `page < app_pages` / offset-in-region
+  ACSL asserts at every flash call site, now proven for the full geometry
+  range including degenerate ports (`region < 16` guards).
+- **Session contracts**: every `handle_*` has requires/assigns/ensures;
+  `upd_handle`'s reply-length contract (`0 iff rsp_cap == 0`, always
+  `<= rsp_cap`) and its `\separated` preconditions (rsp scratch vs
+  session/request — what every shipped main loop does).
+- **Codec behaviors** (`proto.c`): parse/build behaviors incl. `complete
+  /disjoint behaviors`, the in-place build aliasing contract.
+- **The link pump state invariant** (`link_stream.c`): the file-header
+  invariant (`in_frame ==> n < buf_len`, LEN-bound) is now a
+  machine-checked requires/ensures pair, established by `link_init` and
+  re-established by every `link_poll` — plus in-bounds buffer writes for
+  any byte stream.
+
+Scope decisions (deliberate, in force):
+
+- **Unsigned wrap / narrowing lints are the CBMC lane's job.** WP runs the
+  default RTE set = actual UB. `--unsigned-overflow-check` and
+  `--conversion-check` (defined behavior, style discipline) stay
+  exhaustively enforced above; Alt-Ergo models `lsl/lxor/lor` as
+  near-uninterpreted integer functions (no upper-bound axioms in WP's
+  cbits theory), so keeping those non-UB goals in the WP gate would force
+  rewriting every shift/xor idiom purely to please the prover.
+- **CRC functional completeness is out of scope** (unchanged from the
+  CBMC round): `upd_crc8`/`upd_crc32_*` carry `assigns \nothing` frames,
+  not an ACSL logic-function model of the polynomial — high effort, no
+  safety yield (CRC values are checked end-to-end by unit tests, golden
+  vectors and the conformance campaigns).
+- **Pump termination is not claimed deductively.** `link_poll` carries
+  `terminates \false` — honest: termination rests on the io contract
+  (get_byte must eventually run dry, link.h) which needs a ghost stream
+  model to express. The CBMC link harness proves it bounded
+  (`--unwinding-assertions` over every parked state); no fake variant.
+- **Indirect calls are modeled.** WP cannot reason about calls through
+  function pointers with an open target set, so under `__FRAMAC__` the two
+  io-callback invocations route through extern prototypes whose contracts
+  are exactly link.h's callback contract (`assigns *b` / `assigns
+  \nothing`, nondet results). The shipped build calls through the pointers
+  unchanged, and the CBMC link harness verifies that real indirect-call
+  path.
+
+Driver: `device/proofs/run-wp.sh` — the same file CI executes (job
+`frama-c-proofs`, `.github/workflows/ci.yml`); it fails on any unproven
+goal and leaves the full log in `device/proofs/wp.log` (CI uploads it as
+the `wp-report` artifact).
+
+## Core changes forced by WP (all verified equivalent: unit tests + CBMC)
+
+1. `core/update.c` `handle_write`: the page-index LE assembly now computes
+   in wide `unsigned` with an explicit mask (proto.c discipline) instead
+   of int-promoted `uint16_t` shifts — same values, and the
+   signed-overflow RTE goal becomes dischargeable (Alt-Ergo cannot bound
+   `lsl`).
+2. `core/update.c` `handle_echo` / `core/link_stream.c` `link_poll`:
+   loop-stable heap fields (`req->len`; `l->buf`, `l->buf_len`, `l->io`)
+   are snapshotted into locals so loop annotations range over logic
+   constants instead of heap loads re-read under every memory update —
+   same object code, goals go from timeout to proven.
+3. `core/link_stream.c` `link_poll`: the cross-call state invariant was
+   documentation; it is now a requires/ensures pair. That found no code
+   bug (the invariant does hold) but it WAS a missing precondition: a
+   caller fabricating a `link_t` with `in_frame` set and `n >= buf_len`
+   would index out of bounds. `link_init` establishes it; polls preserve
+   it.
 
 ## Core changes forced by CBMC (all verified equivalent by the unit tests)
 

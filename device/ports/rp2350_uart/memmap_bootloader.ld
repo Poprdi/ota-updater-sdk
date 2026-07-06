@@ -1,4 +1,7 @@
-/* updater-sdk rp2350_uart BOOTLOADER memory map.
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher
+ *
+ * updater-sdk rp2350_uart BOOTLOADER memory map.
    Derived from pico-sdk 2.1.1 src/rp2_common/pico_crt0/rp2350/
    memmap_default.ld with ONE change: the FLASH region is pinned to the
    bootloader's reserved 64 KiB at the start of flash instead of including

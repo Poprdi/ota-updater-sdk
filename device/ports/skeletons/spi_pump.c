@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher */
+
 #include "spi_pump.h"
 
 /* Response bytes flow: link_send -> put (queue) -> get (stake into the

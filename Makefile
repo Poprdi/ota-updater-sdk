@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2026 Adrian Erlacher
+#
 # all: build everything buildable on this machine (device core host-lib, host workspace)
 # test: device unit tests + host tests + conformance (incl. sanitizer runner)
 # prove: every prover available on this machine; fails if none can run

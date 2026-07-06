@@ -1,4 +1,7 @@
-/* Reset entry, 1 ms tick, poll loop, entry-window policy, jump — the same
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher
+ *
+ * Reset entry, 1 ms tick, poll loop, entry-window policy, jump — the same
  * loop shape as avr_ea_twi/main.c with the transport swapped: frames
  * arrive through link_stream over the uart_pump instead of the TWI state
  * machine. Protocol behavior mirrors the reference main loop pinned by

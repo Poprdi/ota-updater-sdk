@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher */
+
 #include "uart_pump.h"
 
 /* The pump itself is just the impedance match between link_io_t's

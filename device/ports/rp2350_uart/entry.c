@@ -1,4 +1,7 @@
-/* Bootloader side of the re-entry pair. Address/magic definitions are
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher
+ *
+ * Bootloader side of the re-entry pair. Address/magic definitions are
  * shared with the app via updater/app_stub.h — single source of truth.
  *
  * RP2350 mechanism: two watchdog scratch registers hold magic + one's

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2026 Adrian Erlacher
+#
 # Sanitizer campaign runner: the sim + the real device core under
 # ASan/UBSan, no recovery — any finding aborts and fails `make run`.
 CC     := cc

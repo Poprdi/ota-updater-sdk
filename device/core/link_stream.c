@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher */
+
 #include "updater/link.h"
 
 /* WP proof model for the io callbacks (__FRAMAC__ only — the shipped

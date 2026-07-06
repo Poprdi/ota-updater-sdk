@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher */
+
 #ifndef UPDATER_PORT_CFG_H
 #define UPDATER_PORT_CFG_H
 /* AVR64EA28/TWI port configuration + intra-port wiring. Geometry, buffer

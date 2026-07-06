@@ -1,10 +1,17 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2026 Adrian Erlacher
+
 [package]
 name = "updater-core"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.81"
-description = "no_std, zero-alloc, zero-dependency host core for the updater SDK: frame codec + image handling"
+authors = ["Adrian Erlacher"]
+description = "no_std, zero-alloc, zero-dependency host core of the OTA Updater SDK: frame codec, image handling, update session"
+repository = "https://github.com/Poprdi/ota-updater-sdk"
 license = "MIT OR Apache-2.0"
+keywords = ["ota", "firmware", "bootloader", "no-std", "embedded"]
+categories = ["embedded", "no-std"]
 
 [dependencies]
 # Intentionally empty: updater-core is #![no_std] with zero dependencies so the

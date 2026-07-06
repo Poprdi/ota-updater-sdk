@@ -1,10 +1,17 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2026 Adrian Erlacher
+
 [package]
 name = "updater-cli"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.81"
-description = "Linux command-line front end for the updater SDK: info/echo/flash/boot over I2C, UART, SPI or raw GPIO"
+authors = ["Adrian Erlacher"]
+description = "Linux command-line front end for the OTA Updater SDK: info/echo/flash/boot over I2C, UART, SPI or raw GPIO"
+repository = "https://github.com/Poprdi/ota-updater-sdk"
 license = "MIT OR Apache-2.0"
+keywords = ["ota", "firmware", "bootloader", "cli", "embedded"]
+categories = ["command-line-utilities", "embedded"]
 
 [dependencies]
 anyhow = "1"

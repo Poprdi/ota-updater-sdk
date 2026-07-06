@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher */
+
 #include "updater/crc8.h"
 
 /*@ requires n == 0 || \valid_read(p + (0 .. n-1));

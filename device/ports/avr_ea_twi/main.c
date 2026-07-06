@@ -1,4 +1,7 @@
-/* Reset entry, 1 ms tick, poll loop, entry-window policy, jump.
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher
+ *
+ * Reset entry, 1 ms tick, poll loop, entry-window policy, jump.
  * Protocol behavior mirrors the reference main loop pinned by the
  * conformance sim (conformance/sim/sim_port.c sim_request). */
 #include <avr/io.h>

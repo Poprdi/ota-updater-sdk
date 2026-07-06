@@ -1,4 +1,7 @@
-/* Polled UART0 (ARM PL011) — pico-sdk hardware_uart. Zero protocol
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher
+ *
+ * Polled UART0 (ARM PL011) — pico-sdk hardware_uart. Zero protocol
  * knowledge: this file is only the four uart_pump register ops plus
  * init/drain; framing lives in link_stream, commands in the core.
  *

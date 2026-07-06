@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2026 Adrian Erlacher
+
 //! `updater-cli` — drive the updater bootloader from a Linux master.
 //!
 //! `anyhow` lives only here, at the binary layer; everything below speaks

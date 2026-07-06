@@ -1,4 +1,7 @@
-/* Reset entry, ms tick, poll loop, entry-window policy, jump — the same
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher
+ *
+ * Reset entry, ms tick, poll loop, entry-window policy, jump — the same
  * loop shape as avr_ea_uart/main.c on a second CPU family: frames arrive
  * through link_stream over the uart_pump, the core decides everything,
  * and the only ARM-specific pieces are the tick source and the

@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher */
+
 #ifndef UPDATER_UPDATE_H
 #define UPDATER_UPDATE_H
 /* Main-loop obligations (what YOUR loop must do around this core; the

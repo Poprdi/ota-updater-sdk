@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2026 Adrian Erlacher
+
 //! Host-side stream framing scanner: the byte-exact mirror of the device's
 //! `link_stream.c` receive machine (sync hunt, LEN-driven completion,
 //! silent drop + re-hunt). These tests pin the accept set against the same

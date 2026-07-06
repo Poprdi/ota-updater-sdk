@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2026 Adrian Erlacher
+
 //! `updater-cli install` — installs the *bootloader itself* through a debug
 //! adapter (UPDI/SWD/JTAG) by driving the right external programmer
 //! (avrdude, probe-rs, openocd) from per-target templates in `install.toml`.

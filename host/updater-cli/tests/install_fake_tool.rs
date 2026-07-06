@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2026 Adrian Erlacher
+
 //! End-to-end `updater-cli install` against a fake programmer: a shell
 //! script that records its argv verbatim and exits per FAKE_TOOL_EXIT.
 //! Proves argv-exact spawning (no shell interpretation), placeholder

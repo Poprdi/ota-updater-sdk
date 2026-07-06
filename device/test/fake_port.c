@@ -1,4 +1,7 @@
-/* Host test double for port.h. Test-only: lives in test/, linked into every
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher
+ *
+ * Host test double for port.h. Test-only: lives in test/, linked into every
  * test binary (each links all of core/, and core/update.c calls the port
  * contract). Asserts on every out-of-range flash access so an invariant
  * violation in the core fails loudly here even before the CBMC proofs. */

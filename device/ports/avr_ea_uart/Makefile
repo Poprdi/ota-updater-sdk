@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2026 Adrian Erlacher
+#
 # AVR64EA28 bootloader: proven core + USART0 port (link_stream framing).
 #
 # Install (per board, Task 11 docs):

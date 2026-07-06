@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2026 Adrian Erlacher
+
 //! Compiles the REAL device core (device/core/*.c — the same files the
 //! AVR ports link, link_stream.c included for the stream path) plus the
 //! simulated port into this crate. Flags mirror device/Makefile so the

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2026 Adrian Erlacher
+
 //! Exhaustive FSM enumeration: both session pre-states × all 256 command
 //! bytes × 7 frame variants, straight through the C parse→handle→build
 //! path. This is the full alphabet, not a sample: every cell's response

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2026 Adrian Erlacher
+#
 # Reference targets for `updater-cli install` — installing the *bootloader
 # itself* through a debug adapter. The CLI reads --config <path> if given,
 # else ./install.toml (this file, when run from the repo root).

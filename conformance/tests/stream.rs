@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2026 Adrian Erlacher
+
 //! Stream-path conformance: the host's `updater_core::stream` scanner
 //! against the REAL device `link_stream.c`, both directions — requests
 //! enter through `link_poll`'s sync hunt, responses leave through

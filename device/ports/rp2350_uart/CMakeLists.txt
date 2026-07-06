@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2026 Adrian Erlacher
+#
 # RP2350 (Pico 2 W) bootloader: proven core + UART0 port (link_stream
 # framing) — the cmake/ninja lane, deliberately separate from the AVR make
 # lane and from the repo's host cargo lanes.

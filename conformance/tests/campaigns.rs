@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2026 Adrian Erlacher
+
 //! Adversarial campaigns through the REAL `updater_core::Session` driving
 //! the REAL C core over simulated flash — the no-brick property and the
 //! full-update happy path, demonstrated end to end.

@@ -1,4 +1,7 @@
-/* Simulated device: the 9 port_* functions over a static flash array,
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher
+ *
+ * Simulated device: the 9 port_* functions over a static flash array,
  * plus power-cut injection, confinement enforcement and the request cycle.
  *
  * Confinement is enforced with abort(), not assert(): the CBMC proofs

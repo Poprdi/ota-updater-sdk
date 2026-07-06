@@ -1,4 +1,7 @@
-/* QSPI flash boundary — pico-sdk hardware_flash over the ROM routines.
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher
+ *
+ * QSPI flash boundary — pico-sdk hardware_flash over the ROM routines.
  * Bounds are the core's proven obligation (page < app_pages, offset <
  * region); this file does address math, the 128 -> 256-byte write
  * coalescing, and the 128-byte-page -> 4 KiB-sector erase mapping.

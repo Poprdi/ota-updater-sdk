@@ -1,4 +1,4 @@
-# Updater wire protocol v1 — normative specification
+# OTA Updater SDK wire protocol v1 — normative specification
 
 This document is the source of truth for the wire. A third implementation
 built against nothing but this file must interoperate with the shipped C

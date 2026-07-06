@@ -1,4 +1,7 @@
-/* CBMC harness — stream link layer (link_stream.c): resync safety.
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher
+ *
+ * CBMC harness — stream link layer (link_stream.c): resync safety.
  *
  * Properties, under a fully nondet byte stream delivered in two
  * nondet-sized chunks (get_byte reports "empty" between them, so mid-frame

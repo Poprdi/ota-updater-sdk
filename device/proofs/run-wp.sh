@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2026 Adrian Erlacher
+#
 # Frama-C/WP deductive proof leg — device core, unbounded.
 #
 # Single source of truth: CI (.github/workflows/ci.yml, frama-c-proofs job)
@@ -50,10 +53,23 @@ SRC="device/core/crc8.c
 
 LOG="${WP_LOG:-device/proofs/wp.log}"
 
-# The framac/frama-c images pre-detect provers for their `opam` user. When
-# this runs as another user (GitHub Actions containers run as root, HOME
-# = /github/home), Why3 has no prover config yet — detect once.
+# The image puts frama-c/alt-ergo on PATH via its `opam exec --`
+# entrypoint for the `opam` user. GitHub Actions container jobs bypass the
+# entrypoint and run steps as root, so resolve the opam switch bin
+# directory ourselves when needed.
+if ! command -v frama-c >/dev/null 2>&1; then
+    for d in /home/opam/.opam/*/bin; do
+        if [ -x "${d}/frama-c" ]; then
+            export PATH="${d}:${PATH}"
+            break
+        fi
+    done
+fi
+
+# The image also pre-detects Why3 provers only for the `opam` user. Under
+# another user/HOME (Actions: root, HOME=/github/home), detect once.
 if ! [ -f "${HOME}/.why3.conf" ]; then
+    mkdir -p "${HOME}"
     why3 config detect
 fi
 

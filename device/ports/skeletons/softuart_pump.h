@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: MIT OR Apache-2.0
+ * Copyright (c) 2026 Adrian Erlacher */
+
 #ifndef UPDATER_SOFTUART_PUMP_H
 #define UPDATER_SOFTUART_PUMP_H
 #include <stdbool.h>

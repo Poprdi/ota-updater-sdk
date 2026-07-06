@@ -1,4 +1,4 @@
-# Porting the device bootloader to a new MCU
+# OTA Updater SDK — porting the device bootloader to a new MCU
 
 A port implements exactly one contract — the nine functions in
 `device/include/updater/port.h` — plus a `main()` loop with the

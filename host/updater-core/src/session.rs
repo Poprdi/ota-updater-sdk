@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2026 Adrian Erlacher
+
 //! The session engine: `INFO → ERASE → WRITE* → VERIFY` (and `BOOT`,
 //! `ECHO`) over any [`Transport`], with bounded retries and zero
 //! allocation.
