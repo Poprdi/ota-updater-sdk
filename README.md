@@ -122,12 +122,7 @@ rather than wait: the dual license exists so you can, and the conformance
 harness and [docs/PORTING.md](docs/PORTING.md) travel with your fork as its
 safety net.
 
-Security: report vulnerabilities privately via
-[GitHub security advisories](https://github.com/Poprdi/ota-updater-sdk/security/advisories/new).
-
 ## License
-
-Copyright (c) 2026 Adrian Erlacher.
 
 Dual-licensed under MIT OR Apache-2.0, at your option — see
 [LICENSE-MIT](LICENSE-MIT) and [LICENSE-APACHE](LICENSE-APACHE). This
