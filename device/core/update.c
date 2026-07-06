@@ -76,6 +76,8 @@ bool upd_app_valid(const port_info_t *info)
 
 /* Invariant 2 (jump gating): port_jump_to_app is called from exactly one
  * site in the SDK, below, dominated by upd_app_valid() == true. */
+/*@ requires \valid_read(info);
+    assigns \nothing; */
 bool upd_boot_if_valid(const port_info_t *info)
 {
     if (!upd_app_valid(info))
@@ -84,6 +86,9 @@ bool upd_boot_if_valid(const port_info_t *info)
     return true;   /* unreachable on real ports; reached by test doubles */
 }
 
+/*@ requires \valid(s);
+    assigns *s;
+    ensures s->erased == \false && s->boot_pending == \false; */
 void upd_init(upd_session_t *s)
 {
     port_info(&s->info);
@@ -93,6 +98,9 @@ void upd_init(upd_session_t *s)
 
 /* ---- command handlers -------------------------------------------------- */
 
+/*@ requires \valid_read(s) && rsp_cap >= 1 && \valid(rsp + (0 .. rsp_cap - 1));
+    assigns rsp[0 .. rsp_cap - 1];
+    ensures 1 <= \result <= rsp_cap; */
 static uint8_t handle_info(const upd_session_t *s, uint8_t *rsp,
                            uint8_t rsp_cap)
 {
@@ -116,6 +124,11 @@ static uint8_t handle_info(const upd_session_t *s, uint8_t *rsp,
     return 12u;
 }
 
+/*@ requires \valid(s) && \valid_read(req) && \valid(rsp);
+    requires req->len == 0 || \valid_read(req->payload + (0 .. req->len - 1));
+    requires \separated(rsp, s, req);
+    assigns s->erased, rsp[0];
+    ensures \result == 1; */
 static uint8_t handle_erase(upd_session_t *s, const upd_frame_t *req,
                             uint8_t *rsp)
 {
@@ -141,6 +154,10 @@ static uint8_t handle_erase(upd_session_t *s, const upd_frame_t *req,
     return 1u;
 }
 
+/*@ requires \valid(s) && \valid_read(req) && \valid(rsp);
+    requires req->len == 0 || \valid_read(req->payload + (0 .. req->len - 1));
+    assigns rsp[0];
+    ensures \result == 1; */
 static uint8_t handle_write(upd_session_t *s, const upd_frame_t *req,
                             uint8_t *rsp)
 {
@@ -153,8 +170,14 @@ static uint8_t handle_write(upd_session_t *s, const upd_frame_t *req,
         rsp[0] = UPD_ST_BAD_FRAME;
         return 1u;
     }
-    uint16_t idx = (uint16_t)((uint16_t)req->payload[0] |
-                              (uint16_t)((uint16_t)req->payload[1] << 8));
+    /* LE assembly in wide unsigned (proto.c discipline): the shift can
+     * never overflow int — also what lets WP discharge it (int-promoted
+     * u16 << 8 is a signed-overflow goal Alt-Ergo cannot bound, lsl being
+     * near-uninterpreted in its theory). Same value, same truncation-free
+     * cast: idxw <= 0xFFFF by construction. */
+    unsigned idxw = (unsigned)req->payload[0] |
+                    ((unsigned)req->payload[1] << 8);
+    uint16_t idx  = (uint16_t)(idxw & 0xFFFFu);
     if (idx >= s->info.app_pages) {
         rsp[0] = UPD_ST_OUT_OF_RANGE;
         return 1u;
@@ -166,6 +189,10 @@ static uint8_t handle_write(upd_session_t *s, const upd_frame_t *req,
     return 1u;
 }
 
+/*@ requires \valid_read(s) && \valid_read(req) && \valid(rsp);
+    requires req->len == 0 || \valid_read(req->payload + (0 .. req->len - 1));
+    assigns rsp[0];
+    ensures \result == 1; */
 static uint8_t handle_verify(const upd_session_t *s, const upd_frame_t *req,
                              uint8_t *rsp)
 {
@@ -195,25 +222,41 @@ static uint8_t handle_verify(const upd_session_t *s, const upd_frame_t *req,
     return 1u;
 }
 
+/*@ requires \valid_read(req) && rsp_cap >= 1 && \valid(rsp + (0 .. rsp_cap - 1));
+    requires req->len == 0 || \valid_read(req->payload + (0 .. req->len - 1));
+    requires \separated(rsp + (0 .. rsp_cap - 1), req,
+                        req->payload + (0 .. req->len - 1));
+    assigns rsp[0 .. rsp_cap - 1];
+    ensures 1 <= \result <= rsp_cap; */
 static uint8_t handle_echo(const upd_frame_t *req, uint8_t *rsp,
                            uint8_t rsp_cap)
 {
-    if (req->len > UPD_ECHO_MAX ||
-        (uint32_t)req->len + 1u > (uint32_t)rsp_cap) {
+    /* len is snapshotted so the loop annotations range over a logic
+     * constant instead of a heap load re-read under every memory update —
+     * same code the compiler emits, but WP/Alt-Ergo discharge the loop
+     * goals instead of timing out. */
+    uint8_t len = req->len;
+    if (len > UPD_ECHO_MAX ||
+        (uint32_t)len + 1u > (uint32_t)rsp_cap) {
         rsp[0] = UPD_ST_BAD_FRAME;
         return 1u;
     }
     rsp[0] = UPD_ST_OK;
-    /*@ loop invariant 0 <= i <= req->len;
-        loop assigns i, rsp[1 .. req->len];
-        loop variant req->len - i; */
-    for (uint8_t i = 0u; i < req->len; i++)
+    /*@ loop invariant 0 <= i <= len;
+        loop assigns i, rsp[1 .. len];
+        loop variant len - i; */
+    for (uint8_t i = 0u; i < len; i++)
         rsp[1u + i] = req->payload[i];
-    return (uint8_t)(req->len + 1u);
+    return (uint8_t)(len + 1u);
 }
 
 /*@ requires \valid(s) && \valid_read(req) && \valid(rsp + (0 .. rsp_cap - 1));
-    ensures 0 <= \result <= rsp_cap; */
+    requires req->len == 0 || \valid_read(req->payload + (0 .. req->len - 1));
+    requires \separated(rsp + (0 .. rsp_cap - 1), s, req,
+                        req->payload + (0 .. req->len - 1));
+    assigns s->erased, s->boot_pending, rsp[0 .. rsp_cap - 1];
+    ensures 0 <= \result <= rsp_cap;
+    ensures \result == 0 <==> rsp_cap == 0; */
 uint8_t upd_handle(upd_session_t *s, const upd_frame_t *req,
                    uint8_t *rsp, uint8_t rsp_cap)
 {

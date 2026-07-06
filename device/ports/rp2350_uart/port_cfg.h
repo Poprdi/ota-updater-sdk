@@ -48,10 +48,10 @@ _Static_assert((uint32_t)UPDATER_PAGE_SIZE * UPDATER_APP_PAGES
 
 /* ---- buffer sizing (same rationale as avr_ea_common/port_geom.h) ------ */
 
-/* Largest legal wire frame is page_size + 5 = 133 (WRITE_PAGE: CMD + LEN +
- * index(2) + page(128) + CRC8); the spec allows accepting LEN up to
- * page_size + 8, hence 136. Longer frames are dropped at the LEN byte by
- * link_stream. */
+/* Largest legal wire frame is page_size + 5 = 133 bytes total (WRITE_PAGE:
+ * CMD + LEN + index(2) + page(128) + CRC8); the spec requires accepting
+ * frames up to page_size + 8 bytes total, hence 136 (PROTOCOL.md section
+ * 7). Longer frames are dropped at the LEN byte by link_stream. */
 #define UPDATER_RX_BUF_SIZE     136u
 /* TX: largest response payload (proto.h UPD_RSP_MAX = ST + ECHO_MAX = 17)
  * plus framing. */

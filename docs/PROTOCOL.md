@@ -167,10 +167,11 @@ always see what a boot would see.
 
 ## 7. Buffer rules
 
-- **Device RX:** a port MUST accept frames with `LEN` up to
-  `page_size + 8` and MAY drop anything longer at the wire (the largest
-  legal frame is WRITE_PAGE's `page_size + 5` bytes; the +8 is deliberate
-  slack). RX buffer: `page_size + 8 + 3` bytes (136 for 128-byte pages).
+- **Device RX:** a port MUST accept frames up to `page_size + 8` bytes
+  **total** and MAY drop anything longer at the wire (the largest legal
+  frame is WRITE_PAGE's `page_size + 5` bytes total; the extra 3 bytes
+  are deliberate slack). RX buffer: `page_size + 8` bytes (136 for
+  128-byte pages — exactly what the shipped ports allocate).
   Size from geometry — never from the 252/255 codec ceilings, and never
   from the conformance sim's 255-byte cap, which pins reference-core
   behavior and is not a wire guarantee.
@@ -266,8 +267,17 @@ device compute time between bytes.
 
 ## 11. Golden vectors
 
-Any implementation MUST reproduce these byte-exactly (pinned in
-`conformance/tests/golden.rs` and `conformance/casan/`):
+Any implementation MUST reproduce these byte-exactly. What is pinned
+where: the INFO and ECHO `DE AD BE EF` request/response exchanges are
+pinned against the real C core in `conformance/tests/golden.rs`
+(`conformance/casan/main.c` re-drives the INFO vector over the stream
+binding); the ECHO `AA BB` vector lives only in
+`host/updater-core/tests/golden.rs` (encode and decode — that file also
+pins the INFO request bytes and the CRC-32 check value);
+`device/test/test_crc.c` pins the CRC-8 bytes of the INFO and
+ECHO `AA BB` frames and the CRC-32 check value. The CRC-8 check value
+below is normative in this document and not separately pinned in a
+test.
 
 | Vector | Bytes |
 |---|---|

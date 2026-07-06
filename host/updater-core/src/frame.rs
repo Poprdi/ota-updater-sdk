@@ -2,8 +2,8 @@
 //! byte.
 //!
 //! Frame layout: `[0] = CMD`, `[1] = LEN`, `[2 .. 2+LEN) = payload`,
-//! `[2+LEN] = CRC-8` over bytes `0 .. 2+LEN` (CRC-8/ATM: polynomial 0x07,
-//! init 0x00, no reflection, no final XOR).
+//! `[2+LEN] = CRC-8` over bytes `0 .. 2+LEN` (CRC-8, `SMBus` parameters:
+//! poly 0x07, init 0x00, xorout 0x00; MSB-first, no reflection).
 //!
 //! Everything here is a total function into caller-provided buffers: no
 //! allocation, no panics, no `unsafe`.
@@ -84,7 +84,7 @@ pub struct Frame<'a> {
     pub payload: &'a [u8],
 }
 
-/// One step of CRC-8/ATM (polynomial 0x07, MSB first).
+/// One step of CRC-8 (`SMBus` parameters: poly 0x07; MSB first).
 const fn crc8_step(crc: u8, byte: u8) -> u8 {
     let mut crc = crc ^ byte;
     let mut bit = 0u8;
@@ -101,7 +101,8 @@ const fn crc8_step(crc: u8, byte: u8) -> u8 {
     crc
 }
 
-/// CRC-8/ATM over `data` (polynomial 0x07, init 0x00). Mirrors the device's
+/// CRC-8 (`SMBus` parameters: poly 0x07, init 0x00, xorout 0x00) over
+/// `data`. Mirrors the device's
 /// `upd_crc8`.
 #[must_use]
 pub fn crc8(data: &[u8]) -> u8 {

@@ -64,13 +64,18 @@ and the pinned `conformance/sim/sim_port.c`.
       attempt `upd_boot_if_valid`.
 - [ ] **Rescue residency:** if that attempt refuses (no valid app),
       latch resident so the device stays reachable for rescue flashing.
-- [ ] **Buffers from geometry:** RX `page_size + 8 + 3` bytes; response
+- [ ] **Buffers from geometry:** RX `page_size + 8` bytes (frames up to
+      `page_size + 8` bytes total; PROTOCOL.md §7); response
       payload `UPD_RSP_MAX`; TX `UPD_RSP_MAX + UPD_FRAME_OVERHEAD`.
       Never size from the 252/255 codec ceilings or the sim's 255 cap.
 - [ ] **Jump hygiene:** hand the app a reset-equivalent machine — quiesce
       every peripheral you touched, mask/clear pending interrupt state
       the app could inherit (see the RP2350 port's NVIC scrub and the
-      TWI port's client-off for what this means in practice).
+      TWI port's client-off for what this means in practice), and enter
+      the app with interrupts UNMASKED, exactly as reset would: startup
+      code never executes `cpsie`/`sei`, so a masked handoff leaves the
+      app permanently IRQ-dead (the RP2350 audit's M6 defect — invisible
+      while a validation app busy-polls).
 
 ## 3. Install path
 

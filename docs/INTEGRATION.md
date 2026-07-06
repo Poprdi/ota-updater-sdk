@@ -16,7 +16,7 @@ What it does:
 | Survive lost/corrupt bytes | CRC-8 frames + idempotent retries; no state corruption from re-sent frames |
 | Unbrickable by update | the bootloader never writes its own region — hardware-enforced (AVR BOOTSIZE fuse) or link-enforced (RP2350) |
 | Re-enter the bootloader from a running app | `app_stub.h`, one function call |
-| Same host code everywhere | `updater-core`/`updater-eh` are `no_std`, zero-alloc, zero-dep — identical on an RPi, a Pico 2 W, an ESP32 |
+| Same host code everywhere | `updater-core`/`updater-eh` are `no_std` and zero-alloc; `updater-core` has zero dependencies, `updater-eh` only the `embedded-hal`/`embedded-io` traits — identical on an RPi, a Pico 2 W, an ESP32 |
 
 Hard limits — engineering around these is out of scope by design:
 
@@ -62,9 +62,11 @@ updater-cli --transport gpio --chip /dev/gpiochip0 --pin-tx 23 --pin-rx 24 info
 
 `--baud` accepts the termios standard set 9600–230400. `--dev` defaults:
 `/dev/ttyUSB0` (uart), `/dev/spidev0.0` (spi). Response polling:
-`--poll-attempts`/`--poll-delay-ms`, default 100 × 10 ms — except
-`flash`, which widens to 1200 × 100 ms = 120 s so ERASE_APP cannot
-outlive the wait (Gotcha 1); passing either flag overrides.
+`--poll-attempts`/`--poll-delay-ms`, default 100 × 10 ms. `flash`
+additionally raises the ERASE_APP exchange's budget automatically from
+the geometry the device reports — enough attempts to cover
+`app_pages × 10 ms` of worst-case per-page erase; a larger
+`--poll-attempts` wins (Gotcha 1).
 
 ## 3. Host: Pico 2 W / ESP32 (updater-eh, no_std)
 
@@ -166,7 +168,8 @@ pages). Build (avr-gcc):
 
 ```sh
 make -C device/ports/avr_ea_twi    # -> build/firmware_0x10.hex, firmware_0x20.hex
-make -C device/ports/avr_ea_uart   # -> build/firmware_115200.hex (and 57600)
+make -C device/ports/avr_ea_uart   # -> build/firmware_115200.hex
+make -C device/ports/avr_ea_uart UART_BAUD=57600   # 57600 variant
 ```
 
 Install once per board via UPDI (Atmel-ICE recipe ships in
@@ -236,10 +239,12 @@ Every sharp edge found while building and hardware-validating this SDK.
    erase-verify exits early), so a budget "validated" on fresh flash
    dies on the first real re-flash. Arithmetic: poll attempts × delay ≥
    the target's worst-case erase envelope. The CLI's `flash` subcommand
-   defaults to 1200 × 100 ms = 120 s for exactly this reason (any
-   explicit poll flag overrides); every other subcommand keeps
-   100 × 10 ms, and updater-eh adapters default to ~1 s until you
-   `with_poll` them.
+   sizes the ERASE_APP budget for you from the reported geometry
+   (`app_pages × 10 ms`; ~4.8 s on the AVR-EA, ~82 s on the RP2350 —
+   for the pathological tail of the RP2350 envelope raise
+   `--poll-attempts`, which wins when larger). Every other CLI exchange
+   keeps 100 × 10 ms, and the updater-eh adapters default to ~1 s until
+   you `with_poll` them — sizing those is on you.
 2. **Raspberry Pi built-in I2C vs clock stretching.** The AVR TWI port's
    only flow control is stretching SCL — for seconds during ERASE_APP.
    The BCM283x-family I2C controller on Raspberry Pis has a
@@ -275,9 +280,11 @@ Every sharp edge found while building and hardware-validating this SDK.
    CRC drops → retries). The softuart exists for pin-budget emergencies,
    not throughput; prefer a real UART whenever one exists.
 7. **The conformance sim's 255-byte cap is not a wire guarantee.** Real
-   ports accept LEN only up to `page_size + 8` and drop longer frames at
-   the wire (PROTOCOL.md §7). Size device buffers from geometry; never
-   assume a device accepts codec-maximum frames.
+   ports accept frames only up to `page_size + 8` bytes total (RX buffer
+   `page_size + 8` bytes; the largest legal frame is `page_size + 5`
+   bytes total) and drop longer frames at the wire (PROTOCOL.md §7).
+   Size device buffers from geometry; never assume a device accepts
+   codec-maximum frames.
 
 ## 9. Wire protocol
 

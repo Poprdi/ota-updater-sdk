@@ -63,7 +63,8 @@ fn info_golden_exchange() {
 fn echo_golden_exchange() {
     let sim = Sim::acquire();
 
-    // ECHO DE AD BE EF. Request literal: CRC-8/ATM(06 04 DE AD BE EF) = B3.
+    // ECHO DE AD BE EF. Request literal: CRC-8(06 04 DE AD BE EF) = B3
+    // (SMBus parameters, see PROTOCOL.md section 2).
     const ECHO_REQ: [u8; 7] = [0x06, 0x04, 0xDE, 0xAD, 0xBE, 0xEF, 0xB3];
     let mut enc = [0u8; 8];
     let n = frame::encode(CMD_ECHO, &[0xDE, 0xAD, 0xBE, 0xEF], &mut enc).unwrap();

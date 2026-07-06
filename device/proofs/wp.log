@@ -1,0 +1,61 @@
+[kernel] Parsing device/core/crc8.c (with preprocessing)
+[kernel] Parsing device/core/crc32.c (with preprocessing)
+[kernel] Parsing device/core/proto.c (with preprocessing)
+[kernel] Parsing device/core/update.c (with preprocessing)
+[kernel] Parsing device/core/link_stream.c (with preprocessing)
+[wp] Running WP plugin...
+[rte:annot] annotating function flash_crc
+[kernel:annot:missing-spec] device/include/updater/port.h:120: Warning: 
+  Neither code nor explicit exits and terminates for function port_flash_read_byte,
+   generating default clauses. See -generated-spec-* options for more info
+[rte:annot] annotating function handle_echo
+[rte:annot] annotating function handle_erase
+[kernel:annot:missing-spec] FRAMAC_SHARE/libc/assert.h:20: Warning: 
+  Neither code nor explicit exits and terminates for function __FC_assert,
+   generating default clauses. See -generated-spec-* options for more info
+[kernel:annot:missing-spec] device/include/updater/port.h:88: Warning: 
+  Neither code nor explicit exits and terminates for function port_flash_erase_page,
+   generating default clauses. See -generated-spec-* options for more info
+[rte:annot] annotating function handle_info
+[rte:annot] annotating function handle_verify
+[rte:annot] annotating function handle_write
+[kernel:annot:missing-spec] device/include/updater/port.h:113: Warning: 
+  Neither code nor explicit exits and terminates for function port_flash_write_page,
+   generating default clauses. See -generated-spec-* options for more info
+[rte:annot] annotating function link_init
+[rte:annot] annotating function link_poll
+[kernel:annot:missing-spec] device/core/link_stream.c:21: Warning: 
+  Neither code nor explicit exits and terminates for function updlink_wp_get_byte,
+   generating default clauses. See -generated-spec-* options for more info
+[rte:annot] annotating function link_send
+[kernel:annot:missing-spec] device/core/link_stream.c:23: Warning: 
+  Neither code nor explicit exits and terminates for function updlink_wp_put_byte,
+   generating default clauses. See -generated-spec-* options for more info
+[rte:annot] annotating function region_bytes
+[rte:annot] annotating function upd_app_valid
+[rte:annot] annotating function upd_boot_if_valid
+[kernel:annot:missing-spec] device/include/updater/port.h:179: Warning: 
+  Neither code nor explicit exits and terminates for function port_jump_to_app,
+   generating default clauses. See -generated-spec-* options for more info
+[rte:annot] annotating function upd_crc32_final
+[rte:annot] annotating function upd_crc32_init
+[rte:annot] annotating function upd_crc32_update
+[rte:annot] annotating function upd_crc8
+[rte:annot] annotating function upd_frame_build
+[rte:annot] annotating function upd_frame_parse
+[rte:annot] annotating function upd_handle
+[rte:annot] annotating function upd_init
+[kernel:annot:missing-spec] device/include/updater/port.h:81: Warning: 
+  Neither code nor explicit exits and terminates for function port_info,
+   generating default clauses. See -generated-spec-* options for more info
+[wp] Computing [100 goals...]
+[wp] Computing [200 goals...]
+[wp] Computing [300 goals...]
+[wp] Computing [400 goals...]
+[wp] Computing [500 goals...]
+[wp] 520 goals scheduled
+[wp] Proved goals:  534 / 534
+  Terminating:       7
+  Unreachable:       7
+  Qed:             314 (0.80ms-7ms-392ms)
+  Alt-Ergo 2.5.4:  206 (7ms-33ms-1.3s)

@@ -31,8 +31,9 @@ _Static_assert((0x10000UL - UPDATER_APP_BASE) / UPDATER_PAGE_SIZE
 #define UPDATER_T_ENTRY_MS  300u
 
 /* RX buffer: the largest legal wire frame is page_size + 5 = 133 bytes
- * (WRITE_PAGE: CMD + LEN + index(2) + page(128) + CRC8). The spec allows a
- * port to accept LEN up to page_size + 8, hence 136. Deliberately NOT the
+ * total (WRITE_PAGE: CMD + LEN + index(2) + page(128) + CRC8). The spec
+ * requires accepting frames up to page_size + 8 bytes total, hence 136
+ * (PROTOCOL.md section 7). Deliberately NOT the
  * conformance sim's 255-byte cap: that cap pins reference-CORE behavior,
  * not a wire guarantee (see conformance/sim/sim_port.h). Longer frames are
  * dropped at the wire (twi.c) or at the LEN byte (link_stream). */

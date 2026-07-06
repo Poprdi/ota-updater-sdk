@@ -61,14 +61,30 @@ typedef struct {
     uint8_t  bl_version;
 } port_info_t;
 
+/* ACSL notes (the Frama-C/WP leg proves the core against these contracts):
+ *  - Flash, the wire, the tick counter and the reset-surviving entry pair
+ *    are DEVICE state, reached only through these functions — no C object
+ *    the core (or any caller) can name aliases them. `assigns \nothing`
+ *    below therefore means "no caller-visible memory", exactly the frame
+ *    the core is proven in; it does NOT promise the device state is
+ *    untouched, and WP still treats every port_flash_read_byte result as
+ *    a fresh unconstrained value (no ensures constrains it).
+ *  - The confinement preconditions (page < app_pages, offset inside the
+ *    app region) are stated and proven at the call sites in core/update.c
+ *    (Invariant 1 ACSL asserts); they are not restated here because the
+ *    geometry lives behind port_info and this header cannot name it. */
+
 /* Called by the core (via upd_init). Fill *out with the port's geometry
  * and identity. */
+/*@ requires \valid(out);
+    assigns *out; */
 void     port_info(port_info_t *out);
 
 /* Called by the core (ERASE_APP), once per protocol page, ascending,
  * page < app_pages (proven). Ports whose erase unit spans several protocol
  * pages act on the first page of each unit and no-op the rest
  * (rp2350_uart/flash.c). */
+/*@ assigns \nothing; */
 void     port_flash_erase_page(uint16_t page);
 
 /* Called by the core (WRITE_PAGE), page < app_pages (proven); data has
@@ -86,13 +102,21 @@ void     port_flash_erase_page(uint16_t page);
  * must absorb the repeat itself (compare-and-skip, or buffer like the
  * rp2350 holdback) — it must NOT fault. Re-audit
  * rp2350_uart/PORT_AUDIT.md F3 before reusing that port's flash layer on
- * such a part. */
+ * such a part.
+ *
+ * The readable extent of data is page_size bytes — port geometry, which
+ * this header cannot name in ACSL (and which may be 0 for a degenerate
+ * port, so even `\valid_read(data)` would overconstrain); the CBMC
+ * confinement harness proves the core always passes a full readable page
+ * (its write stub reads page_size bytes back). */
+/*@ assigns \nothing; */
 void     port_flash_write_page(uint16_t page, const uint8_t *data);
 
 /* Called by the core (VERIFY, INFO's app_valid, the boot gate);
  * offset < page_size * app_pages (proven). Must return what a subsequent
  * boot would see — flush any write-coalescing buffer first
  * (rp2350_uart/flash.c). */
+/*@ assigns \nothing; */
 uint8_t  port_flash_read_byte(uint32_t offset);
 
 /* Called by your main loop (transactional transports only; stream ports
@@ -100,22 +124,32 @@ uint8_t  port_flash_read_byte(uint32_t offset);
  * its length in *len when one whole frame has arrived; false when nothing
  * (yet). Never blocks.
  *
- * RX capacity contract: the port accepts frames with LEN up to
- * page_size + 8 and drops longer ones at the wire — buffer
- * page_size + 8 + UPD_FRAME_OVERHEAD bytes (136 total for 128-byte
- * pages). The protocol-wide maxima live in proto.h (UPD_LEN_MAX 252,
- * UPD_FRAME_MAX 255); they bound the CODEC, not your buffer — size from
- * the port geometry, never from the 252/255 ceiling. */
+ * RX capacity contract: the port accepts frames up to page_size + 8
+ * bytes total and drops longer ones at the wire — RX buffer
+ * page_size + 8 bytes (136 for 128-byte pages; the largest legal frame
+ * is WRITE_PAGE's page_size + 5 bytes total). The protocol-wide maxima
+ * live in proto.h (UPD_LEN_MAX 252, UPD_FRAME_MAX 255); they bound the
+ * CODEC, not your buffer — size from the port geometry, never from the
+ * 252/255 ceiling. */
+/*@ requires \valid(len);
+    assigns *len, buf[0 .. 254]; */
+    /* buf[0 .. 254]: a delivered frame is at most 255 bytes (LEN is a u8;
+     * largest legal frame page_size + 5 <= 255) — the caller's buffer is
+     * sized page_size + 8 per the RX capacity contract above, which
+     * always covers the written prefix. */
 bool     port_recv(uint8_t *buf, uint8_t *len);
 
 /* Called by your main loop (transactional transports only; stream ports
  * use link_send instead). Queue/emit one whole response frame (at most UPD_RSP_MAX + UPD_FRAME_OVERHEAD = 20 bytes — see proto.h). */
+/*@ requires len == 0 || \valid_read(buf + (0 .. len - 1));
+    assigns \nothing; */
 void     port_send(const uint8_t *buf, uint8_t len);
 
 /* Called by your main loop (the core never reads time). Free-running
  * milliseconds since reset; wraps every 65536 ms and that is fine — it
  * gates ONLY the T_ENTRY entry window (a one-shot decision taken long
  * before the first wrap); nothing else in the system times off it. */
+/*@ assigns \nothing; */
 uint16_t port_ticks_ms(void);
 
 /* Called by your main loop, once at startup: did the application request
@@ -128,11 +162,20 @@ uint16_t port_ticks_ms(void);
  * power-on (the complement check rejects POR garbage). Capture may have
  * to beat the C runtime: on AVR-EA the pair lives under the initial
  * stack, so entry.c snapshots it in .init3, before the first CALL can
- * push over it — a new port must check for the same hazard. */
+ * push over it — a new port must check for the same hazard.
+ *
+ * (assigns \nothing: the pair it clears lives in reset-surviving device
+ * storage outside any C object a caller can name — header note above.) */
+/*@ assigns \nothing; */
 bool     port_entry_requested(void);
 
 /* Called by the core, from exactly one site: upd_boot_if_valid, after the
- * image validated. Transfer control to the app; never returns. */
+ * image validated. Transfer control to the app; never returns on real
+ * ports. Deliberately NOT annotated `ensures \false`: test doubles and
+ * the conformance sim DO return (update.c relies on it), and the proofs
+ * must stay sound for them — nothing downstream of the call is assumed
+ * unreachable. */
+/*@ assigns \nothing; */
 void     port_jump_to_app(void);
 
 #endif

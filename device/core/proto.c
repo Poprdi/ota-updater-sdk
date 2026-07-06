@@ -2,7 +2,7 @@
 #include "updater/crc8.h"
 
 /* Wire frame: [0]=CMD  [1]=LEN  [2 .. 2+LEN-1]=payload  [2+LEN]=CRC8 over
- * bytes 0 .. 1+LEN (CRC-8/ATM, see crc8.h).
+ * bytes 0 .. 1+LEN (CRC-8, SMBus parameters — see crc8.h).
  *
  * u8 edge cases, by construction (all length arithmetic is done in
  * unsigned int, which cannot wrap for these operands, so no truncating
