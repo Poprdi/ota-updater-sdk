@@ -35,7 +35,6 @@ static void touch(uint16_t page)
 
 void port_info(port_info_t *out)
 {
-    out->app_base     = 0x1000u;
     out->page_size    = 128u;
     out->app_pages    = 32u;
     out->device_id[0] = (uint8_t)'T';

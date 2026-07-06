@@ -30,6 +30,22 @@ operation is ever executed, so the checks pass as genuine proofs.
   silent read of slack space. Also checks the codec postconditions
   (`payload == buf+2`, length bookkeeping) and `upd_handle`'s return
   contract (`0 iff rsp_cap == 0`, `<= rsp_cap`).
+- `harness_link.c` — **stream link resync safety.** `link_poll` is driven
+  over a fully nondet byte stream (<= 10 bytes) delivered in two
+  nondet-sized chunks into an exact-`malloc`'d receive buffer of nondet
+  size <= 10; the split point is arbitrary, so the second poll covers
+  resuming from every parked state (hunting, mid-header, mid-payload).
+  Proves the parser never writes outside its buffer, never reads past the
+  bytes the stream handed it, always returns once the stream is drained
+  (`--unwinding-assertions` — no byte sequence wedges the pump), and that
+  delivered frames satisfy the link contract (`payload == buf+2`, frame
+  fits the buffer) while the state invariant (`in_frame ==> n < buf_len`)
+  survives every poll. `link_send` is driven with an exact-length nondet
+  frame so an over-read is a pointer-check failure. Runs with its own
+  `--unwind 12` (the model's largest loop is the 11-iteration pump; the
+  shared 70 turns the pump x parse x CRC-8 nesting into minutes of solver
+  time) and links only `crc8.c + proto.c + link_stream.c` — `update.c`
+  would drag the port contract in for code the harness never reaches.
 - `harness_confinement.c` — **Invariant 1: flash confinement.** Port stubs
   assert `page < app_pages` (erase/write), `offset < page_size*app_pages`
   (read), and that `upd_handle` never reaches `port_jump_to_app`. The
@@ -43,7 +59,8 @@ operation is ever executed, so the checks pass as genuine proofs.
   erases/writes flash and never reads outside the app region.
 
 Latest run: `0 of 654 failed` (rte), `0 of 646 failed` (confinement),
-`0 of 636 failed` (boot gate). Whole `make -C device prove`: ~19 s.
+`0 of 636 failed` (boot gate), `0 of 335 failed` (link). Whole
+`make -C device prove`: ~106 s (~70 s of it the link harness).
 
 ## Model bounds (`PROOF_SMALL_MODEL`) and why they are sound to use
 

@@ -9,6 +9,7 @@
 #include "sim_port.h"
 #include "updater/crc32.h"
 #include "updater/crc8.h"
+#include "updater/link.h"
 #include "updater/proto.h"
 
 static int g_fail;
@@ -194,6 +195,53 @@ static void run_fsm_sweep(void)
     }
 }
 
+/* ---- 5. stream path: golden INFO + torn-then-good recovery -------------- */
+
+static void run_stream(void)
+{
+    static const uint8_t info_req[3] = { 0x01u, 0x00u, 0x15u };
+    uint8_t golden[259];
+    uint8_t resp[512];
+
+    /* Golden reference: the same INFO exchange through the transactional
+     * (I2C) path on a fresh device. */
+    sim_reset(false);
+    uint16_t gn = sim_request(info_req, 3u, golden);
+    CHECK(gn == 15u);
+
+    /* (a) Golden INFO through the REAL link_stream.c: the response stream
+     * must be byte-identical to the I2C-path response, modulo the leading
+     * 0x7E sync of the stream binding. */
+    sim_reset(false);
+    static const uint8_t info_stream[4] = {
+        UPD_LINK_SYNC, 0x01u, 0x00u, 0x15u
+    };
+    uint16_t rn = sim_request_stream(info_stream, 4u, resp, sizeof resp);
+    CHECK(rn == (uint16_t)(gn + 1u));
+    CHECK(resp[0] == UPD_LINK_SYNC);
+    CHECK(memcmp(resp + 1u, golden, gn) == 0);
+
+    /* (b) Torn frame, then a good frame. Pump 1 delivers half an ECHO
+     * frame — link state must persist with no reply. Pump 2 delivers the
+     * tail with a corrupted CRC (silent drop, stream semantics: no
+     * ST_BAD_FRAME on this path) followed by a complete valid INFO frame,
+     * whose response must arrive intact. */
+    sim_reset(false);
+    const uint8_t torn[4] = { 0x06u /* ECHO */, 0x02u, 0xAAu, 0xBBu };
+    uint8_t good_crc = upd_crc8(torn, 4u);
+    const uint8_t head[4] = { UPD_LINK_SYNC, torn[0], torn[1], torn[2] };
+    CHECK(sim_request_stream(head, 4u, resp, sizeof resp) == 0u);
+
+    const uint8_t tail_then_good[6] = {
+        torn[3], (uint8_t)(good_crc ^ 0xFFu),           /* torn tail, bad CRC */
+        UPD_LINK_SYNC, 0x01u, 0x00u, 0x15u              /* good INFO frame    */
+    };
+    rn = sim_request_stream(tail_then_good, 6u, resp, sizeof resp);
+    CHECK(rn == (uint16_t)(gn + 1u));                   /* ONE reply: INFO's  */
+    CHECK(resp[0] == UPD_LINK_SYNC);
+    CHECK(memcmp(resp + 1u, golden, gn) == 0);
+}
+
 int main(void)
 {
     fill_app();
@@ -203,11 +251,13 @@ int main(void)
     run_campaign(crc);
     run_powercut_sweep(crc);
     run_fsm_sweep();
+    run_stream();
 
     if (g_fail) {
         fprintf(stderr, "casan: FAILURES\n");
         return 1;
     }
-    printf("casan: golden + campaign + 64-cut sweep + 2x256 FSM sweep clean\n");
+    printf("casan: golden + campaign + 64-cut sweep + 2x256 FSM sweep "
+           "+ stream clean\n");
     return 0;
 }

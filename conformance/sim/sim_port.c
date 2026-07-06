@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "sim_port.h"
+#include "updater/link.h"
 #include "updater/proto.h"
 #include "updater/update.h"
 
@@ -25,7 +26,6 @@ static bool          g_jumped;   /* BOOT gate fired                      */
 
 void port_info(port_info_t *out)
 {
-    out->app_base     = 0x1000u;
     out->page_size    = (uint16_t)SIM_PAGE_SIZE;
     out->app_pages    = (uint16_t)SIM_APP_PAGES;
     out->device_id[0] = (uint8_t)'S';
@@ -117,6 +117,81 @@ void port_jump_to_app(void)
     g_jumped = true;
 }
 
+/* ---- stream mode: the real link_stream.c over an in-memory byte pipe --- */
+
+static link_t         g_link;
+static uint8_t        g_link_buf[255];   /* protocol LEN ceiling, like sim_request */
+static const uint8_t *g_stream_in;
+static uint16_t       g_stream_in_len;
+static uint16_t       g_stream_in_pos;
+static uint8_t       *g_stream_out;
+static uint16_t       g_stream_out_cap;
+static uint16_t       g_stream_out_pos;
+
+static bool stream_get(void *ctx, uint8_t *b)
+{
+    (void)ctx;
+    if (g_stream_in_pos >= g_stream_in_len)
+        return false;
+    *b = g_stream_in[g_stream_in_pos];
+    g_stream_in_pos++;
+    return true;
+}
+
+static void stream_put(void *ctx, uint8_t b)
+{
+    (void)ctx;
+    if (g_stream_out_pos >= g_stream_out_cap)
+        abort();                       /* caller broke the resp-cap contract */
+    g_stream_out[g_stream_out_pos] = b;
+    g_stream_out_pos++;
+}
+
+static const link_io_t g_stream_io = { stream_get, stream_put, NULL };
+
+uint16_t sim_request_stream(const uint8_t *bytes, uint16_t len, uint8_t *resp,
+                            uint16_t cap)
+{
+    if (g_dead || g_jumped)
+        return 0u;                     /* nobody home */
+
+    g_stream_in      = bytes;
+    g_stream_in_len  = len;
+    g_stream_in_pos  = 0u;
+    g_stream_out     = resp;
+    g_stream_out_cap = cap;
+    g_stream_out_pos = 0u;
+
+    /* The real stream main loop: pump, handle, reply via link_send, then
+     * (BOOT ordering) take the gate. link_poll returns at the FIRST
+     * complete frame, so loop until the byte pipe is drained. Unparseable
+     * bytes yield NO reply — the link drops them silently (stream
+     * semantics; contrast sim_request's transactional ST_BAD_FRAME). */
+    upd_frame_t req;
+    while (link_poll(&g_link, &req)) {
+        uint8_t payload[252];
+        uint8_t frame[255];
+        uint8_t plen = upd_handle(&g_session, &req, payload,
+                                  (uint8_t)sizeof payload);
+        uint8_t n = upd_frame_build(frame, (uint8_t)sizeof frame,
+                                    (uint8_t)(req.cmd | UPD_RSP_FLAG),
+                                    payload, plen);
+        if (g_dead)
+            break;       /* the cut landed mid-handling: no reply escapes
+                          * for THIS request — but replies emitted earlier
+                          * in this pump already left the wire */
+        link_send(&g_stream_io, frame, n);
+
+        if (g_session.boot_pending) {
+            g_session.boot_pending = false;
+            (void)upd_boot_if_valid(&g_session.info);
+            if (g_jumped)
+                break;                 /* the app owns the wire now */
+        }
+    }
+    return g_stream_out_pos;
+}
+
 /* ---- sim controls ------------------------------------------------------ */
 
 void sim_reset(bool preserve_flash)
@@ -129,6 +204,7 @@ void sim_reset(bool preserve_flash)
     g_dead    = false;
     g_jumped  = false;
     upd_init(&g_session);
+    link_init(&g_link, &g_stream_io, g_link_buf, (uint8_t)sizeof g_link_buf);
 }
 
 void sim_powercut_after(uint32_t flash_ops)

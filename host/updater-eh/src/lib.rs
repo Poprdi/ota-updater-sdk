@@ -1,18 +1,30 @@
 //! # updater-eh
 //!
-//! [`updater_core::Transport`] over `embedded-hal` 1.x blocking I2C: the
-//! platform glue for any master whose HAL speaks embedded-hal — Raspberry
-//! Pi Pico 2 W, ESP32, or a Linux box through `linux-embedded-hal`.
+//! [`updater_core::Transport`] adapters over the `embedded-hal` 1.x /
+//! `embedded-io` traits: the platform glue for any master whose HAL speaks
+//! those traits — Raspberry Pi Pico 2 W, ESP32, or a Linux box through its
+//! embedded-hal shims. Pick the adapter matching your wiring, hand it the
+//! HAL objects, and give the result to `updater_core::Session`; nothing
+//! else is required.
 //!
-//! The exchange is write-then-poll-read: the request frame goes out in one
-//! I2C write, then the response is read in one **fixed-length** read of the
-//! whole `rsp` buffer (the master must pick a read length before the device
-//! has said how long its response is). The device pads the tail of the read
-//! with `0xFF` idle bytes; the session decodes such responses with
-//! `updater_core::frame::decode_padded`. While the device is busy (erasing
-//! or burning a page) it NACKs its address or clock-stretches — the read is
-//! therefore retried a bounded number of times with a configurable delay
-//! between attempts.
+//! * [`I2cTransport`] — blocking I2C ([`embedded_hal::i2c::I2c`]):
+//!   write-then-poll-read, fixed-length reads padded by the device with
+//!   `0xFF` idle bytes.
+//! * [`UartTransport`] — a byte stream ([`embedded_io::Read`] +
+//!   [`embedded_io::Write`]): hardware UART, USB-CDC, RS-485, anything
+//!   stream-shaped.
+//! * [`SpiTransport`] — [`embedded_hal::spi::SpiDevice`]: the host clocks
+//!   idle bytes to poll; the device shifts `0x00` while busy and `0x7E`
+//!   when the response starts.
+//! * [`SoftUartTransport`] — two GPIOs + a delay
+//!   ([`embedded_hal::digital`], [`embedded_hal::delay::DelayNs`]):
+//!   bit-banged 9600-baud 8N1 for pin-budget emergencies.
+//!
+//! The stream transports (UART, SPI, softuart) share one wire binding —
+//! `0x7E` sync + frame, `updater_core::stream` — and one polling
+//! discipline: bounded attempts with a configurable delay, like the I2C
+//! adapter's busy-poll. Every adapter is `no_std`, allocation-free and
+//! panic-free by construction.
 
 #![no_std]
 #![forbid(unsafe_code)]
@@ -24,111 +36,31 @@
 )]
 #![warn(clippy::pedantic, missing_docs)]
 
-use core::fmt;
+mod i2c;
+mod softuart;
+mod spi;
+mod uart;
 
-use embedded_hal::delay::DelayNs;
-use embedded_hal::i2c::{I2c, SevenBitAddress};
-use updater_core::Transport;
+pub use i2c::{I2cTransport, I2cTransportError};
+pub use softuart::{
+    SoftUartTransport, SoftUartTransportError, DEFAULT_SOFTUART_POLL_ATTEMPTS,
+    DEFAULT_SOFTUART_POLL_INTERVAL_NS, SOFTUART_BIT_NS,
+};
+pub use spi::{SpiTransport, SpiTransportError, DEFAULT_SPI_BYTE_INTERVAL_NS};
+pub use uart::{UartTransport, UartTransportError};
 
-/// Default poll budget: attempts per response read.
+/// Default poll budget: attempts per response wait.
 pub const DEFAULT_POLL_ATTEMPTS: u32 = 200;
 /// Default delay between poll attempts (5 ms — with the default budget,
-/// a one-second window, enough for a full-region erase on AVR-class flash).
+/// a ~1 s window sized for short commands and single page writes).
+///
+/// `ERASE_APP` is NOT covered on larger parts: the device erases the whole
+/// region page by page and holds the bus for the duration — an AVR64EA28
+/// takes roughly 5 s (480 pages × ~10 ms each). Widen the window with
+/// `with_poll` so that attempts × delay ≥ `app_pages` × per-page erase time,
+/// taking the per-page figure from the device datasheet.
 pub const DEFAULT_POLL_INTERVAL_NS: u32 = 5_000_000;
-
-/// What went wrong on the bus.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum I2cTransportError<E> {
-    /// The request write failed.
-    Write(E),
-    /// Every poll read failed; carries the attempt count and last bus error.
-    Exhausted {
-        /// Number of read attempts made.
-        attempts: u32,
-        /// The bus error from the final attempt.
-        last: E,
-    },
-}
-
-impl<E: embedded_hal::i2c::Error> fmt::Display for I2cTransportError<E> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Write(e) => write!(f, "i2c write failed: {}", e.kind()),
-            Self::Exhausted { attempts, last } => write!(
-                f,
-                "device did not answer within {attempts} poll attempt(s), last i2c error: {}",
-                last.kind()
-            ),
-        }
-    }
-}
-
-impl<E: fmt::Debug + embedded_hal::i2c::Error> core::error::Error for I2cTransportError<E> {}
-
-/// [`Transport`] over a blocking embedded-hal I2C bus.
-#[derive(Debug)]
-pub struct I2cTransport<I2C, D> {
-    i2c: I2C,
-    delay: D,
-    addr: SevenBitAddress,
-    poll_attempts: u32,
-    poll_interval_ns: u32,
-}
-
-impl<I2C, D> I2cTransport<I2C, D> {
-    /// Wrap `i2c` targeting the 7-bit device address `addr`, using `delay`
-    /// between poll attempts; polling defaults to
-    /// [`DEFAULT_POLL_ATTEMPTS`] × [`DEFAULT_POLL_INTERVAL_NS`].
-    pub fn new(i2c: I2C, delay: D, addr: SevenBitAddress) -> Self {
-        Self {
-            i2c,
-            delay,
-            addr,
-            poll_attempts: DEFAULT_POLL_ATTEMPTS,
-            poll_interval_ns: DEFAULT_POLL_INTERVAL_NS,
-        }
-    }
-
-    /// Override the poll budget: up to `attempts` reads (clamped to at
-    /// least 1), `interval_ns` apart.
-    #[must_use]
-    pub fn with_poll(mut self, attempts: u32, interval_ns: u32) -> Self {
-        self.poll_attempts = attempts.max(1);
-        self.poll_interval_ns = interval_ns;
-        self
-    }
-
-    /// Take the bus and delay back (e.g. to reuse the peripheral after the
-    /// update session).
-    pub fn release(self) -> (I2C, D) {
-        (self.i2c, self.delay)
-    }
-}
-
-impl<I2C: I2c, D: DelayNs> Transport for I2cTransport<I2C, D> {
-    type Err = I2cTransportError<I2C::Error>;
-
-    /// Write `req`, then poll-read the response as one fixed-length read
-    /// filling all of `rsp` (device pads with `0xFF`); always returns
-    /// `rsp.len()` on success.
-    fn request(&mut self, req: &[u8], rsp: &mut [u8]) -> Result<usize, Self::Err> {
-        self.i2c
-            .write(self.addr, req)
-            .map_err(I2cTransportError::Write)?;
-
-        let mut attempt: u32 = 0;
-        loop {
-            // Bounded: the loop exits at poll_attempts, which is >= 1.
-            attempt = attempt.wrapping_add(1);
-            match self.i2c.read(self.addr, rsp) {
-                Ok(()) => return Ok(rsp.len()),
-                Err(e) => {
-                    if attempt >= self.poll_attempts {
-                        return Err(I2cTransportError::Exhausted { attempts: attempt, last: e });
-                    }
-                    self.delay.delay_ns(self.poll_interval_ns);
-                }
-            }
-        }
-    }
-}
+/// Default babble bound for the stream transports: non-frame events
+/// (hunted garbage bytes, dropped frames, framing errors) tolerated per
+/// request before the line is declared desynchronized.
+pub const DEFAULT_SCAN_LIMIT: u32 = 4096;

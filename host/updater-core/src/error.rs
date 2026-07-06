@@ -87,7 +87,9 @@ impl<E: fmt::Display> fmt::Display for Error<E> {
         match self {
             Error::Transport(e) => write!(f, "transport error: {e}"),
             Error::BadFrame => f.write_str("malformed frame (length or CRC-8 mismatch)"),
-            Error::Device(st) => write!(f, "device reported status {st:#04x}"),
+            Error::Device(st) => {
+                write!(f, "device reported status {st:#04x} ({})", crate::frame::st_name(*st))
+            }
             Error::PayloadTooLarge { len } => {
                 write!(f, "payload of {len} bytes exceeds the frame limit")
             }

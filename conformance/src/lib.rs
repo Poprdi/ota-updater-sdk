@@ -15,8 +15,10 @@
 //! else in the SDK. The shipped crates remain `#![forbid(unsafe_code)]`.
 
 use std::convert::Infallible;
+use std::fmt;
 use std::sync::{Mutex, MutexGuard};
 
+use updater_core::stream::{RxScanner, Scan, SYNC};
 use updater_core::Transport;
 
 /// Flash page size of the simulated device (matches device test fixtures).
@@ -27,6 +29,8 @@ pub const APP_PAGES: usize = 32;
 pub const REGION: usize = PAGE_SIZE * APP_PAGES;
 /// `sim_request` contract: the response buffer must hold at least this.
 const RESP_CAP: usize = 259;
+/// `sim_request_stream` contract: response-stream buffer size.
+const STREAM_RESP_CAP: usize = 512;
 
 extern "C" {
     fn sim_reset(preserve_flash: bool);
@@ -34,6 +38,7 @@ extern "C" {
     fn sim_powercut_hit() -> bool;
     fn sim_flash_ops() -> u32;
     fn sim_request(frame: *const u8, len: u16, resp: *mut u8) -> u16;
+    fn sim_request_stream(bytes: *const u8, len: u16, resp: *mut u8, cap: u16) -> u16;
     fn sim_jumped() -> bool;
     fn sim_flash() -> *mut u8;
 }
@@ -113,12 +118,36 @@ impl Sim {
         }
     }
 
+    /// One pump of the byte-stream path: `bytes` enter the REAL
+    /// `link_stream.c` receiver, every completed frame is handled, and
+    /// each reply leaves through `link_send` (`0x7E` + frame). Returns
+    /// the raw response-stream bytes (empty when nothing completed or the
+    /// device is dead/jumped). Link state persists across calls.
+    pub fn request_stream(&self, bytes: &[u8]) -> Vec<u8> {
+        let mut resp = [0u8; STREAM_RESP_CAP];
+        let len = u16::try_from(bytes.len()).expect("stream pumps are < 64 KiB");
+        let cap = u16::try_from(STREAM_RESP_CAP).expect("cap fits u16");
+        let n = unsafe { sim_request_stream(bytes.as_ptr(), len, resp.as_mut_ptr(), cap) };
+        resp[..usize::from(n)].to_vec()
+    }
+
     /// A [`Transport`] over this sim, borrowing the handle. A shared borrow
     /// suffices: every sim entry point takes `&self` (the C side owns the
     /// mutation) and the mutex in [`Sim::acquire`] already guarantees the
     /// process-wide exclusivity that makes those calls sound.
     pub fn transport(&self) -> SimTransport<'_> {
         SimTransport { sim: self }
+    }
+
+    /// A [`Transport`] over the byte-stream path: requests go out as
+    /// `0x7E` + frame through the device's `link_poll`, responses come
+    /// back through `link_send` and are scanned by the host's
+    /// `updater_core::stream` — the shared framing exercised end to end,
+    /// both directions. `lag` busy bytes (`0x00`) are prepended to every
+    /// response scan, modelling the SPI slave's one-byte shift-register
+    /// lag (`device/ports/skeletons/spi_pump.h`).
+    pub fn stream_transport(&self, lag: usize) -> SimStreamTransport<'_> {
+        SimStreamTransport { sim: self, lag }
     }
 }
 
@@ -145,5 +174,51 @@ impl Transport for SimTransport<'_> {
             *b = 0xFF;
         }
         Ok(rsp.len())
+    }
+}
+
+/// The stream transport failed to find a response frame — a dead device
+/// (no bytes) or a scan that never completed. The session's retry treats
+/// it like any transport error.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StreamError;
+
+impl fmt::Display for StreamError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("no valid frame in the response stream")
+    }
+}
+
+impl std::error::Error for StreamError {}
+
+/// The loopback stream transport: `0x7E`-framed requests through the C
+/// `link_stream`, responses scanned with the host stream scanner.
+pub struct SimStreamTransport<'a> {
+    sim: &'a Sim,
+    lag: usize,
+}
+
+impl Transport for SimStreamTransport<'_> {
+    type Err = StreamError;
+
+    fn request(&mut self, req: &[u8], rsp: &mut [u8]) -> Result<usize, StreamError> {
+        let mut tx = Vec::with_capacity(req.len() + 1);
+        tx.push(SYNC);
+        tx.extend_from_slice(req);
+        let raw = self.sim.request_stream(&tx);
+
+        // Host-side scan, exactly what the eh adapters do: lag/busy bytes
+        // are hunt fodder, the first sync starts the frame, LEN completes
+        // it.
+        let mut scanner = RxScanner::new();
+        for _ in 0..self.lag {
+            let _ = scanner.push(0x00, rsp); // SPI shift-register lag byte
+        }
+        for &b in &raw {
+            if let Scan::Done { len } = scanner.push(b, rsp) {
+                return Ok(len);
+            }
+        }
+        Err(StreamError)
     }
 }

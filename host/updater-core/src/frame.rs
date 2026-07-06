@@ -57,6 +57,23 @@ pub const PAYLOAD_MAX: usize = 255 - FRAME_OVERHEAD;
 /// Unlock magic carried by `CMD_ERASE_APP` ("ERAS").
 pub const ERASE_MAGIC: [u8; 4] = *b"ERAS";
 
+/// Human-readable name of a device status byte (`ST_*`), for error
+/// messages; unknown values map to `"unknown status"`.
+#[must_use]
+pub fn st_name(st: u8) -> &'static str {
+    match st {
+        ST_OK => "OK",
+        ST_BAD_FRAME => "BAD_FRAME: device saw a malformed frame",
+        ST_BAD_CMD => "BAD_CMD: unknown command",
+        ST_NOT_ERASED => "NOT_ERASED: write before erase",
+        ST_OUT_OF_RANGE => "OUT_OF_RANGE: page or length outside the app region",
+        ST_BAD_CRC => "BAD_CRC: image CRC mismatch",
+        ST_BAD_MAGIC => "BAD_MAGIC: missing or wrong erase magic",
+        ST_NO_APP => "NO_APP: no valid application present",
+        _ => "unknown status",
+    }
+}
+
 /// A decoded frame; `payload` borrows from the receive buffer handed to
 /// [`decode`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

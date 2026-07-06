@@ -54,7 +54,11 @@ pub struct DeviceInfo {
     pub bl_version: u8,
     /// Device identity bytes (port-defined).
     pub device_id: [u8; 4],
-    /// Flash page size in bytes.
+    /// Protocol page size in bytes — the `WRITE_PAGE` transfer unit. This
+    /// is the wire's unit, not necessarily the device's physical flash
+    /// page (a port may coalesce protocol pages into larger program
+    /// units; e.g. the RP2350 port maps two 128-byte protocol pages onto
+    /// one 256-byte flash page).
     pub page_size: u16,
     /// Number of pages in the app region.
     pub app_pages: u16,

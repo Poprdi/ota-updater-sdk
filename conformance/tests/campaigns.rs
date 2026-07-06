@@ -7,7 +7,7 @@ use std::convert::Infallible;
 use conformance::{Sim, APP_PAGES, PAGE_SIZE, REGION};
 use updater_core::frame::{
     self, CMD_ERASE_APP, CMD_VERIFY, CMD_WRITE_PAGE, ERASE_MAGIC, RSP_FLAG,
-    ST_BAD_CRC, ST_NO_APP, ST_OK,
+    ST_BAD_CRC, ST_NO_APP, ST_OK, ST_OUT_OF_RANGE,
 };
 use updater_core::image::Image;
 use updater_core::{Error, Session};
@@ -216,6 +216,40 @@ fn out_of_order_and_duplicate_writes_still_verify() {
     assert_eq!(sim.flash_snapshot(), expected_flash(&img));
     try_boot(&sim).expect("out-of-order image must boot");
     assert!(sim.jumped());
+}
+
+#[test]
+fn out_of_range_boundary_pinned_through_ffi() {
+    // Wellformed (framing-valid) requests whose PARAMETERS are out of range
+    // must be answered with ST_OUT_OF_RANGE by the real C core — a core
+    // that dropped only the range checks would still pass every other
+    // campaign here, so the fence is pinned explicitly, from both sides.
+    let sim = Sim::acquire();
+
+    assert_eq!(raw(&sim, CMD_ERASE_APP, &ERASE_MAGIC), [ST_OK]);
+    let erased = sim.flash_snapshot();
+
+    // WRITE_PAGE idx = APP_PAGES (32, LE [32, 0]): first index past the
+    // app region. Wellformed frame, full 128-byte payload.
+    let mut payload = vec![0xA5u8; 2 + PAGE_SIZE];
+    payload[..2].copy_from_slice(&u16::try_from(APP_PAGES).unwrap().to_le_bytes());
+    assert_eq!(raw(&sim, CMD_WRITE_PAGE, &payload), [ST_OUT_OF_RANGE]);
+    assert_eq!(sim.flash_snapshot(), erased, "rejected write must not touch flash");
+
+    // VERIFY length = region - 15: one past the region-16 bound (the last
+    // 16 bytes are the footer, never part of the measured image). Any CRC —
+    // the length gate must fire before the CRC is even computed.
+    let mut vp = [0u8; 8];
+    vp[..4].copy_from_slice(&u32::try_from(REGION - 15).unwrap().to_le_bytes());
+    vp[4..].copy_from_slice(&0xDEAD_BEEF_u32.to_le_bytes());
+    assert_eq!(raw(&sim, CMD_VERIFY, &vp), [ST_OUT_OF_RANGE]);
+
+    // Boundary companion: idx = APP_PAGES - 1 (31) is the last valid page
+    // and must be accepted — the fence sits exactly at APP_PAGES.
+    payload[..2].copy_from_slice(&u16::try_from(APP_PAGES - 1).unwrap().to_le_bytes());
+    assert_eq!(raw(&sim, CMD_WRITE_PAGE, &payload), [ST_OK]);
+    let snap = sim.flash_snapshot();
+    assert_eq!(&snap[(APP_PAGES - 1) * PAGE_SIZE..], vec![0xA5u8; PAGE_SIZE]);
 }
 
 #[test]

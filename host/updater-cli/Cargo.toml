@@ -3,11 +3,29 @@ name = "updater-cli"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.81"
-description = "Linux command-line front end for the updater SDK: info/echo/flash/boot over /dev/i2c-*"
+description = "Linux command-line front end for the updater SDK: info/echo/flash/boot over I2C, UART, SPI or raw GPIO"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
+# install.toml parsing only. `toml` is the parser cargo itself uses; its
+# errors carry line/column plus a source snippet, which the install config's
+# error contract requires. Binary-only — the no_std crates never see it.
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+# Linux device backends. Serial is raw termios through nix (already in the
+# dependency tree via spidev — zero new crates) rather than the serialport
+# crate, which would drag in libudev; the CLI needs exactly
+# open + cfmakeraw + speed + VMIN/VTIME.
 i2cdev = "0.6"
+nix = { version = "0.29", features = ["term"] }
+spidev = "0.7"
+gpio-cdev = "0.6"
+# The UART/SPI/GPIO transports are updater-eh's — the CLI only implements
+# the embedded-hal/embedded-io traits over the Linux device nodes, so the
+# exact adapter a Pico consumer uses is what ships here too.
+embedded-hal = "1"
+embedded-io = { version = "0.7", features = ["std"] }
 updater-core = { path = "../updater-core" }
+updater-eh = { path = "../updater-eh" }

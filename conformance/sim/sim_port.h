@@ -1,7 +1,7 @@
 #ifndef SIM_PORT_H
 #define SIM_PORT_H
 /* Simulated device for the conformance harness: the real device core
- * (device/core/*.c) over an in-memory flash. Shared by the Rust FFI layer
+ * (the five device core C files) over an in-memory flash. Shared by the Rust FFI layer
  * (conformance/src/lib.rs) and the sanitizer runner (conformance/casan).
  *
  * Dev-only. Static state throughout — callers must serialize access
@@ -44,8 +44,32 @@ uint32_t sim_flash_ops(void);
  * CMD byte is the first received byte | 0x80 (0x80 alone if no byte
  * arrived) — reference main-loop behavior. A BOOT reply is emitted BEFORE
  * the jump, exactly like the real main loop (reply, then
- * upd_boot_if_valid). */
+ * upd_boot_if_valid).
+ *
+ * The sim accepts frames up to the protocol's LEN ceiling (255-byte
+ * payload) because it exists to exercise the core's own bounds checks; a
+ * real port only buffers what the largest legal command needs — page_size
+ * + 8 (136 here) — and drops longer frames at the wire. What this harness
+ * pins for oversized-but-parseable frames is therefore reference-CORE
+ * behavior, not a wire guarantee: the AVR main.c author must size the RX
+ * buffer from the port geometry, not copy the 255 cap. */
 uint16_t sim_request(const uint8_t *frame, uint16_t len, uint8_t *resp);
+
+/* Stream-path twin of sim_request: feeds the bytes through the REAL
+ * link_stream.c (sync hunt, LEN-driven assembly), handles every complete
+ * frame, and emits each reply through link_send (0x7E + frame) into resp.
+ * Returns the number of response-stream bytes written; resp must hold
+ * >= 512 bytes (worst case: two max replies never occur, but one sync +
+ * 255-byte frame per handled request — size for the requests you batch,
+ * or the sim aborts on overflow, contract-violation style).
+ *
+ * Stream semantics differ from sim_request on unparseable input: the link
+ * drops garbage/CRC-corrupt bytes SILENTLY (no ST_BAD_FRAME reply) — loss
+ * recovery belongs to the host's timeout+retry, per link.h. Link state
+ * persists across calls (a frame may be torn across pumps) and resets on
+ * sim_reset(). Dead or jumped devices return 0. */
+uint16_t sim_request_stream(const uint8_t *bytes, uint16_t len, uint8_t *resp,
+                            uint16_t cap);
 
 /* Has the BOOT gate fired (port_jump_to_app reached) since sim_reset()? */
 bool sim_jumped(void);

@@ -1,6 +1,8 @@
 //! Minimal Intel-HEX parser: `:llaaaatt[dd..]cc`, record types 00 (data)
-//! and 01 (EOF) only, checksum verified, extended-address records rejected
-//! with the offending line number.
+//! and 01 (EOF) honored, start-address records 03/05 ignored with a note
+//! on stderr (the updater has no entry-point concept — the device boots
+//! the app's own vector), checksum verified, extended-address records
+//! (02/04) rejected with the offending line number.
 //!
 //! Deliberately not a general ihex library: the updater's app region lives
 //! at offset 0 of a 16-bit address space (images are < 64 KiB by
@@ -60,7 +62,13 @@ pub fn parse(text: &str) -> Result<Vec<u8>> {
             0x01 => saw_eof = true,
             0x02 | 0x04 => bail!(
                 "line {lineno}: extended address record (type {rtype:#04x}) is not supported \
-                 — the updater image must fit 16-bit addresses starting at 0"
+                 — the updater image must fit 16-bit addresses starting at 0; for ARM-class \
+                 images produce a raw binary instead: \
+                 arm-none-eabi-objcopy -O binary app.elf app.bin"
+            ),
+            0x03 | 0x05 => eprintln!(
+                "note: line {lineno}: ignoring start-address record (type {rtype:#04x}) — \
+                 the updater boots the app via its own vector, not a HEX entry point"
             ),
             other => bail!("line {lineno}: unsupported record type {other:#04x}"),
         }
@@ -120,16 +128,28 @@ mod tests {
             assert!(err.contains("extended address"), "{err}");
             assert!(err.contains("line 2"), "{err}");
             assert!(err.contains(ty), "{err}");
+            // ARM-class images have a prescribed escape hatch.
+            assert!(err.contains("arm-none-eabi-objcopy -O binary"), "{err}");
+        }
+    }
+
+    #[test]
+    fn start_address_records_are_ignored() {
+        // Type 03 (start segment address) and 05 (start linear address),
+        // checksum-correct: skipped with a stderr note, data unaffected.
+        for rec in [":0400000300003800C1", ":0400000500003800BF"] {
+            let text = format!(":04000000DEADBEEFC4\n{rec}\n:00000001FF\n");
+            assert_eq!(parse(&text).unwrap(), vec![0xDE, 0xAD, 0xBE, 0xEF]);
         }
     }
 
     #[test]
     fn other_record_types_are_rejected() {
-        // Type 03 (start segment address), checksum-correct.
-        let text = ":0400000300003800C1\n:00000001FF\n";
+        // Type 06 (nonexistent), checksum-correct.
+        let text = ":00000006FA\n:00000001FF\n";
         let err = format!("{:#}", parse(text).unwrap_err());
         assert!(err.contains("line 1"), "{err}");
-        assert!(err.contains("0x03"), "{err}");
+        assert!(err.contains("0x06"), "{err}");
     }
 
     #[test]

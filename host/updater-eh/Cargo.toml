@@ -3,10 +3,14 @@ name = "updater-eh"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.81"
-description = "embedded-hal 1.x I2C Transport adapter for the updater SDK: the Pico 2 W / ESP32 platform glue"
+description = "embedded-hal 1.x Transport adapters (I2C, UART, SPI, softuart GPIO) for the updater SDK: the Pico 2 W / ESP32 platform glue"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-# Exactly these two: the crate is no_std platform glue and nothing else.
+# Exactly these three: the crate is no_std platform glue and nothing else.
+# embedded-io 0.7 is the byte-stream trait line today's target HALs
+# implement (embassy-rp 0.10 — the Pico 2 W HAL — implements 0.7 only;
+# esp-hal 1.1 offers it alongside 0.6).
 embedded-hal = "1"
+embedded-io = "0.7"
 updater-core = { path = "../updater-core" }

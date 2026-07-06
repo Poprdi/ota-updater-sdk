@@ -40,7 +40,6 @@ static bool     g_jumped;
 
 void port_info(port_info_t *out)
 {
-    out->app_base     = 0x1000u;
     out->page_size    = g_page_size;
     out->app_pages    = g_app_pages;
     out->device_id[0] = nondet_u8();

@@ -23,10 +23,20 @@
 #define UPD_ST_NO_APP       0x07u
 
 #define UPD_ECHO_MAX        16u
+/* Largest response payload upd_handle can produce: ECHO's ST byte + up to
+ * UPD_ECHO_MAX echoed bytes (INFO's 12 is smaller). Size response-payload
+ * buffers from this, not by re-deriving 17. */
+#define UPD_RSP_MAX         (1u + UPD_ECHO_MAX)
 /* frame = CMD + LEN + payload + CRC8; payload cap is set by the port's
  * page_size (WRITE_PAGE carries page_size + 2). Buffers are sized by the
  * port; the codec only checks internal consistency. */
 #define UPD_FRAME_OVERHEAD  3u
+/* Protocol-wide codec ceilings: LEN is a u8 and a whole frame fits 255
+ * bytes, so a payload holds at most 255 - UPD_FRAME_OVERHEAD = 252 bytes.
+ * These bound the CODEC; a port sizes its RX buffer from its geometry
+ * (page_size + 8 accepted LEN — see port.h), never from these. */
+#define UPD_LEN_MAX         252u
+#define UPD_FRAME_MAX       255u
 
 typedef struct {
     uint8_t        cmd;

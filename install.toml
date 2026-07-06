@@ -1,0 +1,57 @@
+# Reference targets for `updater-cli install` — installing the *bootloader
+# itself* through a debug adapter. The CLI reads --config <path> if given,
+# else ./install.toml (this file, when run from the repo root).
+#
+# Schema, per [targets.<name>]:
+#   tool     = executable to run (searched on PATH, or an absolute path)
+#   args     = argv template; {image} and {port} are substituted, any other
+#              {...} is rejected. Spawned argv-exact — never via a shell.
+#   pre      = optional argv lists run first (e.g. a separate fuse step),
+#              shape: pre = [["avrdude", "-U", "bootsize:w:8:m"]] — element 0
+#              of each list is the tool name and is taken LITERALLY (no
+#              {image}/{port} substitution there; the remaining elements
+#              are substituted like args)
+#   port_arg = flag used to append --port when the template has no {port}
+
+# AVR64EA28 over UPDI (Atmel-ICE): the port's install contract.
+# BOOTSIZE=8 (8 x 512 B = 4 KiB boot section, APP_BASE 0x1000) is mandatory:
+# with BOOTSIZE unprogrammed the whole flash is BOOT and the bootloader can
+# never write the app region. Fuse and flash ride one avrdude invocation.
+# Image: make -C device/ports/avr_ea_twi -> build/firmware_0xNN.hex.
+[targets.avr64ea28-updi]
+tool = "avrdude"
+args = [
+    "-c", "atmelice_updi",
+    "-p", "avr64ea28",
+    "-U", "bootsize:w:8:m",
+    "-U", "flash:w:{image}:i",
+]
+port_arg = "-P"
+
+# EXAMPLE ONLY — a generic probe-rs SWD recipe (RP2040 shown). The updater
+# SDK has no RP2040 device port yet; this demonstrates the template shape
+# for SWD/JTAG parts. probe-rs: cargo install probe-rs-tools.
+[targets.rp2040-swd-example]
+tool = "probe-rs"
+args = [
+    "download",
+    "--chip", "RP2040",
+    "--binary-format", "hex",
+    "{image}",
+]
+
+# RP2350 (Pico 2 W): install the bootloader UF2 through picotool while the
+# board is in BOOTSEL mode (hold BOOTSEL while plugging in USB). The port's
+# cmake lane produces the image: device/ports/rp2350_uart ->
+# build/bootloader.uf2 (pico-sdk builds picotool itself if absent:
+# build/_deps/picotool-build/picotool). "-f" forces a reboot into BOOTSEL
+# if a picotool-compatible binary is running; "-x" reboots into the freshly
+# written image. ZERO-TOOL PATH: the same UF2 can simply be copied onto the
+# mounted BOOTSEL mass-storage drive (e.g. /run/media/$USER/RP2350) — the
+# ROM flashes it and reboots on write-complete. Either way, note that this
+# bootloader has NO USB: after a successful install the BOOTSEL drive
+# disappears and NOTHING re-enumerates — a silent USB bus is success, the
+# bootloader is listening on UART0 (GPIO0/1).
+[targets.rp2350-bootsel]
+tool = "picotool"
+args = ["load", "-f", "-x", "{image}"]
