@@ -45,13 +45,18 @@ on:
 jobs:
   frama-c-proofs:
     runs-on: ubuntu-latest
-    container: framac/frama-c:32.1
+    # The image declares `USER opam` (uid 1000) and GitHub honors it, so
+    # without an override the checkout step cannot write the runner-owned
+    # workspace (uid 1001) and fails before anything runs. Force root; the
+    # entrypoint (`opam exec --`) is bypassed for job steps, so run-wp.sh
+    # resolves the opam switch PATH and runs `why3 config detect` itself
+    # (both fallbacks exist in the script for exactly this environment).
+    container:
+      image: framac/frama-c:32.1
+      options: --user root
     steps:
       - uses: actions/checkout@v4
 
-      # GitHub runs container jobs as root with HOME=/github/home, not as
-      # the image's `opam` user — run-wp.sh handles the missing Why3
-      # prover config by running `why3 config detect` itself.
       - name: WP + Alt-Ergo, device core (zero unproven goals required)
         run: bash device/proofs/run-wp.sh
 
@@ -67,17 +72,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install AVR toolchain
-        run: sudo apt-get update && sudo apt-get install -y gcc-avr avr-libc binutils-avr
-
       - name: Device unit tests (host cc, -Werror -Wconversion)
         run: make -C device test
 
-      - name: AVR TWI bootloader (4 KiB size gate + .init3 gate)
-        run: make -C device/ports/avr_ea_twi
-
-      - name: AVR UART bootloader (4 KiB size gate + .init3 gate)
-        run: make -C device/ports/avr_ea_uart
+      # ubuntu-latest apt ships gcc-avr 7.3.0, which has no AVR64EA28
+      # device support ("device-specs/specs-avr64ea28: No such file or
+      # directory"); debian:trixie ships gcc-avr 14.2.0 + avr-libc with
+      # the EA series. Build both ports in that container instead.
+      - name: AVR bootloaders (4 KiB size gates + .init3 gates; gcc-avr 14 via debian:trixie)
+        run: |
+          docker run --rm -v "$PWD:/work" -w /work debian:trixie bash -euc '
+            apt-get update -qq >/dev/null
+            apt-get install -y -qq gcc-avr avr-libc binutils-avr make >/dev/null
+            avr-gcc --version | head -1
+            make -C device/ports/avr_ea_twi
+            make -C device/ports/avr_ea_uart'
 
       - name: Host workspace tests
         run: cargo test --workspace --all-features
